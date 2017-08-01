@@ -82,19 +82,19 @@ GET /mx/<mx-name>/addressbook
 {
   "addressbook": {
     "43884850646482261": {
-        "cellPhone": "+1-512-555-0136",
-        "email": "mikef@xyzrd.com",
-        "ext": "3055",
-        "firstName": "Mike",
-        "homePhone": "+1-202-555-0104",
-        "lastName": "Flynn",
-        "status": "LoggedOut"
+      "cellPhone": "+1-512-555-0136",
+      "email": "mikef@xyzrd.com",
+      "ext": "3055",
+      "firstName": "Mike",
+      "homePhone": "+1-202-555-0104",
+      "lastName": "Flynn",
+      "status": "LoggedOut"
     },
     "43884850647480796": {
-        "ext": "3093",
-        "firstName": "Test",
-        "lastName": "Admin",
-        "status": "LoggedOut"
+      "ext": "3093",
+      "firstName": "Test",
+      "lastName": "Admin",
+      "status": "LoggedOut"
     },
     ...
   }
