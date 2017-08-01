@@ -5,17 +5,17 @@
 ```ssh
 Usage of ./mxproxy:
   -config filename
-    	config filename (default "mxproxy.json")
+      config filename (default "mxproxy.json")
   -csta
-    	CSTA output
+      CSTA output
   -db filename
-    	tokens DB filename (default "mxproxy.db")
+      tokens DB filename (default "mxproxy.db")
   -debug
-    	debug output
+      debug output
   -host name
-    	main server name (default "mxproxy.connector73.net")
+      main server name (default "mxproxy.connector73.net")
   -logflag int
-    	log flags (default 64)
+      log flags (default 64)
 ```
 
 Для запуска локальной копии сервера используйте ключ `-host localhost:8080`: в этом случае сервис не будет пытаться использовать HTTPS и получать сертификат Let's Encrypt.
@@ -29,19 +29,19 @@ Usage of ./mxproxy:
 
 ```json
 {
-	"mx": {
-		"test": {
-			"addr": "127.0.0.1:7778",
-			"login": "server",
-			"password": "password"
-		}
-	},
-	"apns": {
-		"push-cert.p12": "password"
-	},
-	"gfcm": {
-		"app-name": "GOOGLE-APP-KEY"
-	}
+  "mx": {
+    "test": {
+      "addr": "127.0.0.1:7778",
+      "login": "server",
+      "password": "password"
+    }
+  },
+  "apns": {
+    "push-cert.p12": "password"
+  },
+  "gfcm": {
+    "app-name": "GOOGLE-APP-KEY"
+  }
 }
 
 ```
@@ -65,7 +65,7 @@ Usage of ./mxproxy:
 
 ```json
 {
-    "error": "not found"
+  "error": "not found"
 }
 ```
 
@@ -80,24 +80,24 @@ GET /mx/<mx-name>/addressbook
 
 ```json
 {
-    "addressbook": {
-        "43884850646482261": {
-            "cellPhone": "+1-512-555-0136",
-            "email": "mikef@xyzrd.com",
-            "ext": "3055",
-            "firstName": "Mike",
-            "homePhone": "+1-202-555-0104",
-            "lastName": "Flynn",
-            "status": "LoggedOut"
-        },
-        "43884850647480796": {
-            "ext": "3093",
-            "firstName": "Test",
-            "lastName": "Admin",
-            "status": "LoggedOut"
-        },
-        ...
-    }
+  "addressbook": {
+    "43884850646482261": {
+        "cellPhone": "+1-512-555-0136",
+        "email": "mikef@xyzrd.com",
+        "ext": "3055",
+        "firstName": "Mike",
+        "homePhone": "+1-202-555-0104",
+        "lastName": "Flynn",
+        "status": "LoggedOut"
+    },
+    "43884850647480796": {
+        "ext": "3093",
+        "firstName": "Test",
+        "lastName": "Admin",
+        "status": "LoggedOut"
+    },
+    ...
+  }
 }
 ```
 
@@ -112,50 +112,50 @@ GET /mx/<mx-name>/calllog
 
 ```json
 {
-    "callog": [
-        {
-            "callType": 1,
-            "callingPartyNo": "3044",
-            "direction": "outgoing",
-            "disconnect": "2017-07-26T20:32:51Z",
-            "ext": "3099",
-            "firstName": "Maxim",
-            "gcid": "63022-00-0000D-175",
-            "lastName": "Donchenko",
-            "legType": 1,
-            "originalCalledPartyNo": "3099",
-            "recordId": 373,
-            "selfLegType": 1
-        },
-        {
-            "callType": 1,
-            "callingPartyNo": "3044",
-            "connect": "2017-07-26T20:35:20Z",
-            "direction": "outgoing",
-            "disconnect": "2017-07-26T20:35:33Z",
-            "gcid": "63022-00-0000D-176",
-            "legType": 1,
-            "originalCalledPartyNo": "*86",
-            "recordId": 374,
-            "selfLegType": 1
-        },
-        {
-            "callType": 1,
-            "callingPartyNo": "3044",
-            "connect": "2017-07-28T14:31:11Z",
-            "direction": "outgoing",
-            "disconnect": "2017-07-28T14:31:47Z",
-            "ext": "3095",
-            "firstName": "Dmitry",
-            "gcid": "63022-00-0000D-1AB",
-            "lastName": "Sedykh",
-            "legType": 3,
-            "originalCalledPartyNo": "3095",
-            "recordId": 427,
-            "selfLegType": 1
-        },
-        ...
-    ]
+  "callog": [
+    {
+      "callType": 1,
+      "callingPartyNo": "3044",
+      "direction": "outgoing",
+      "disconnect": "2017-07-26T20:32:51Z",
+      "ext": "3099",
+      "firstName": "Maxim",
+      "gcid": "63022-00-0000D-175",
+      "lastName": "Donchenko",
+      "legType": 1,
+      "originalCalledPartyNo": "3099",
+      "recordId": 373,
+      "selfLegType": 1
+    },
+    {
+      "callType": 1,
+      "callingPartyNo": "3044",
+      "connect": "2017-07-26T20:35:20Z",
+      "direction": "outgoing",
+      "disconnect": "2017-07-26T20:35:33Z",
+      "gcid": "63022-00-0000D-176",
+      "legType": 1,
+      "originalCalledPartyNo": "*86",
+      "recordId": 374,
+      "selfLegType": 1
+    },
+    {
+      "callType": 1,
+      "callingPartyNo": "3044",
+      "connect": "2017-07-28T14:31:11Z",
+      "direction": "outgoing",
+      "disconnect": "2017-07-28T14:31:47Z",
+      "ext": "3095",
+      "firstName": "Dmitry",
+      "gcid": "63022-00-0000D-1AB",
+      "lastName": "Sedykh",
+      "legType": 3,
+      "originalCalledPartyNo": "3095",
+      "recordId": 427,
+      "selfLegType": 1
+    },
+    ...
+  ]
 }
 ```
 
@@ -175,10 +175,10 @@ POST /mx/<mx-name>call
 
 ```json
 {
-	"ringDelay": 2,
-	"vmDelay": 28,
-	"from": "79031744445",
-	"to": "79031744437"
+  "ringDelay": 2,
+  "vmDelay": 28,
+  "from": "79031744445",
+  "to": "79031744437"
 }
 ```
 
@@ -186,8 +186,8 @@ POST /mx/<mx-name>call
 
 ```json
 {
-	"from": "79031744445",
-	"to": "1099"
+  "from": "79031744445",
+  "to": "1099"
 }
 ```
 
@@ -195,9 +195,9 @@ POST /mx/<mx-name>call
 
 ```json
 {
-    "callId": 32,
-    "called": "1099",
-    "deviceId": "3095"
+  "callId": 32,
+  "called": "1099",
+  "deviceId": "3095"
 }
 ```
 
@@ -212,7 +212,7 @@ POST /mx/<ma-name>/token/<apns|gfcm>/<bundle-id>
 
 ```json
 {
-	"token": "7C179108B7BF759...34E200E46387E7D713917E0F3E09"
+  "token": "7C179108B7BF759...34E200E46387E7D713917E0F3E09"
 }
 ```
 
