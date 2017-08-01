@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/mdigger/mxproxy/csta"
+	"github.com/mdigger/csta"
 )
 
 // CSTAError описывает ошибку CSTA.

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/mdigger/csta"
 	"github.com/mdigger/log"
-	"github.com/mdigger/mxproxy/csta"
 	"github.com/mdigger/rest"
 )
 

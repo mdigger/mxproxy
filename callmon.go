@@ -4,8 +4,8 @@ import (
 	"encoding/xml"
 	"sync"
 
+	"github.com/mdigger/csta"
 	"github.com/mdigger/log"
-	"github.com/mdigger/mxproxy/csta"
 )
 
 // CallMonsStart добавляет список идентификаторов пользователей для мониторинга

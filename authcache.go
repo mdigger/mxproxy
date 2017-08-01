@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mdigger/mxproxy/csta"
+	"github.com/mdigger/csta"
 )
 
 // AuthCacheDuration содержит продолжительность, в течение которого

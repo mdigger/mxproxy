@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/crypto/acme/autocert"
 
+	"github.com/mdigger/csta"
 	"github.com/mdigger/log"
-	"github.com/mdigger/mxproxy/csta"
 	"github.com/mdigger/rest"
 )
 

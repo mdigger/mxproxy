@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mdigger/csta"
 	"github.com/mdigger/log"
-	"github.com/mdigger/mxproxy/csta"
 )
 
 // MXReadTimeout используется в качестве максимального времени ожидания ответа

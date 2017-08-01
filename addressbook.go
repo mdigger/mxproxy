@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/xml"
 
-	"github.com/mdigger/mxproxy/csta"
+	"github.com/mdigger/csta"
 	"github.com/mdigger/rest"
 )
 
