@@ -111,6 +111,10 @@ func (mx *MX) Monitoring() error {
 			if err := response.Decode(delivery); err != nil {
 				return err
 			}
+			// игнорируем, если не указано вызываемое устройство
+			if delivery.CalledDevice == "" {
+				continue
+			}
 			// добавляем временную метку, которой изначально нет
 			delivery.Time = time.Now().UTC()
 			// сопоставляем с монитором звонков пользователей
