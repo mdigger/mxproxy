@@ -57,11 +57,13 @@ type MXDelivery struct {
 	MonitorCrossRefID     uint64    `xml:"monitorCrossRefID" json:"-"`
 	CallID                uint64    `xml:"connection>callID" json:"callId"`
 	DeviceID              string    `xml:"connection>deviceID" json:"deviceId"`
+	GlobalCallID          string    `xml:"connection>globalCallID" json:"globalCallId"`
 	AlertingDevice        string    `xml:"alertingDevice>deviceIdentifier" json:"alertingDevice"`
 	CallingDevice         string    `xml:"callingDevice>deviceIdentifier" json:"callingDevice"`
 	CalledDevice          string    `xml:"calledDevice>deviceIdentifier" json:"calledDevice"`
 	LastRedirectionDevice string    `xml:"lastRedirectionDevice>deviceIdentifier" json:"lastRedirectionDevice"`
 	LocalConnectionInfo   string    `xml:"localConnectionInfo" json:"localConnectionInfo"`
 	Cause                 string    `xml:"cause" json:"cause"`
+	CallTypeFlags         uint32    `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
 	Time                  time.Time `xml:"-" json:"time"`
 }
