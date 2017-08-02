@@ -57,7 +57,7 @@ func (mx *MX) PostCall(c *rest.Context) error {
 		Type string `xml:"typeOfNumber,attr"`
 		Ext  string `xml:",chardata"`
 	}
-	id, err := client.Send(&struct {
+	var cmd = &struct {
 		XMLName       xml.Name      `xml:"http://www.ecma-international.org/standards/ecma-323/csta/ed4 MakeCall"`
 		CallingDevice callingDevice `xml:"callingDevice"`
 		To            string        `xml:"calledDirectoryNumber"`
@@ -67,20 +67,10 @@ func (mx *MX) PostCall(c *rest.Context) error {
 			Ext:  client.Ext,
 		},
 		To: params.To,
-	})
+	}
+	resp, err := client.SendWithResponse(cmd, MXReadTimeout)
 	if err != nil {
 		return err
-	}
-
-	// читаем ответ
-	client.SetWait(MXReadTimeout)
-read:
-	resp, err := client.Receive()
-	if err != nil {
-		return err
-	}
-	if resp.ID != id {
-		goto read
 	}
 	switch resp.Name {
 	case "CSTAErrorCode":
