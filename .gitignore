@@ -1,8 +1,5 @@
-
 mxproxy
-
 *.db
-
 *.json
-
 *.p12
+build/

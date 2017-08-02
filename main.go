@@ -19,11 +19,12 @@ import (
 )
 
 var (
-	appName = "mxproxy"                 // название сервиса
-	version = "1.0.5"                   // версия
-	date    = "2017-08-01"              // дата сборки
-	host    = "mxproxy.connector73.net" // имя сервера
-	debug   = false                     // флаг вывода отладочной информации
+	appName = "mxproxy"                    // название сервиса
+	version = "1.0.7"                      // версия
+	date    = "2017-08-01"                 // дата сборки
+	git     = ""                           // версия git
+	host    = appName + ".connector73.net" // имя сервера
+	debug   = false                        // флаг вывода отладочной информации
 )
 
 var (
@@ -52,6 +53,7 @@ func main() {
 		"version": version,
 		"build":   date,
 		"name":    appName,
+		"git":     git,
 	}).Info("starting service")
 
 	// разрешаем вывод отладочной информации, включая вывод команд CSTA
