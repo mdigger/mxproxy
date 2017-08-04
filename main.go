@@ -20,8 +20,8 @@ import (
 
 var (
 	appName = "mxproxy"                    // название сервиса
-	version = "1.0.7"                      // версия
-	date    = "2017-08-01"                 // дата сборки
+	version = "1.0.10"                     // версия
+	date    = "2017-08-04"                 // дата сборки
 	git     = ""                           // версия git
 	host    = appName + ".connector73.net" // имя сервера
 	debug   = false                        // флаг вывода отладочной информации

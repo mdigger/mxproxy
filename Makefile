@@ -1,5 +1,5 @@
 appname := mxproxy
-version := 1.0.9
+version := 1.0.10
 
 sources    := $(wildcard *.go)
 BUILD_DATE := `date -u +%Y-%m-%d`
