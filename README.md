@@ -87,14 +87,12 @@ GET /mx/<mx-name>/addressbook
       "ext": "3055",
       "firstName": "Mike",
       "homePhone": "+1-202-555-0104",
-      "lastName": "Flynn",
-      "status": "LoggedOut"
+      "lastName": "Flynn"
     },
     "43884850647480796": {
       "ext": "3093",
       "firstName": "Test",
-      "lastName": "Admin",
-      "status": "LoggedOut"
+      "lastName": "Admin"
     },
     ...
   }
@@ -117,7 +115,7 @@ GET /mx/<mx-name>/calllog
       "callType": 1,
       "callingPartyNo": "3044",
       "direction": "outgoing",
-      "disconnect": "2017-07-26T20:32:51Z",
+      "disconnect": 1501101171,
       "ext": "3099",
       "firstName": "Maxim",
       "gcid": "63022-00-0000D-175",
@@ -130,9 +128,9 @@ GET /mx/<mx-name>/calllog
     {
       "callType": 1,
       "callingPartyNo": "3044",
-      "connect": "2017-07-26T20:35:20Z",
+      "connect": 1501101320,
       "direction": "outgoing",
-      "disconnect": "2017-07-26T20:35:33Z",
+      "disconnect": 1501101333,
       "gcid": "63022-00-0000D-176",
       "legType": 1,
       "originalCalledPartyNo": "*86",
@@ -142,16 +140,16 @@ GET /mx/<mx-name>/calllog
     {
       "callType": 1,
       "callingPartyNo": "3044",
-      "connect": "2017-07-28T14:31:11Z",
+      "connect": 1501101426,
       "direction": "outgoing",
-      "disconnect": "2017-07-28T14:31:47Z",
-      "ext": "3095",
-      "firstName": "Dmitry",
-      "gcid": "63022-00-0000D-1AB",
-      "lastName": "Sedykh",
+      "disconnect": 1501101436,
+      "ext": "3099",
+      "firstName": "Maxim",
+      "gcid": "63022-00-0000D-177",
+      "lastName": "Donchenko",
       "legType": 3,
-      "originalCalledPartyNo": "3095",
-      "recordId": 427,
+      "originalCalledPartyNo": "3099",
+      "recordId": 375,
       "selfLegType": 1
     },
     ...
@@ -159,10 +157,11 @@ GET /mx/<mx-name>/calllog
 }
 ```
 
-Опционально можно указать в запросе ограничение по времени, начиная с которого будет отдаваться лог:
+Опционально можно указать в запросе ограничение по времени, начиная с которого будет отдаваться лог. Время можно указать как в виде строки, так и числовым представлением:
 
 ```http
 GET /mx/<mx-name>/calllog?timestamp=2017-07-28T14:31:47Z
+GET /mx/<mx-name>/calllog?timestamp=1501101426
 ```
 
 ### Обратный звонок
@@ -240,6 +239,6 @@ POST /mx/test/token/apns/com.xyzrd.PushTest?sandbox
   "localConnectionInfo": "alerting",
   "cause": "normal",
   "callTypeFlags": 170917889,
-  "time": "2017-08-02T11:25:28.527761646Z"
+  "time": 1501101426
 }
 ```

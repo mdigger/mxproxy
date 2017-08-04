@@ -116,7 +116,7 @@ func (mx *MX) Monitoring() error {
 				continue
 			}
 			// добавляем временную метку, которой изначально нет
-			delivery.Time = time.Now().UTC()
+			delivery.Timestamp = time.Now().Unix()
 			// сопоставляем с монитором звонков пользователей
 			jid := mx.callmons.JID(delivery.MonitorCrossRefID)
 			if jid == 0 {

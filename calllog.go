@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/xml"
 	"net"
-	"time"
 
+	"github.com/mdigger/csta"
 	"github.com/mdigger/rest"
 )
 
@@ -24,10 +24,8 @@ func (mx *MX) GetCallLog(c *rest.Context) error {
 
 	// разбираем параметра timestamp
 	var ts int64 = -1
-	if timestamp := c.Query("timestamp"); timestamp != "" {
-		if t, err := time.Parse(time.RFC3339, timestamp); err == nil {
-			ts = t.Unix()
-		}
+	if timestamp := csta.ParseTimestamp(c.Query("timestamp")); !timestamp.IsZero() {
+		ts = timestamp.Unix()
 	}
 	if _, err := client.Send(&struct {
 		XMLName   xml.Name `xml:"iq"`
