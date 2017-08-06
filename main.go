@@ -56,11 +56,11 @@ func main() {
 
 	log.SetFlags(logFlags)
 	log.WithFields(log.Fields{
-		"version": version,
-		"build":   build,
-		"name":    appName,
-		"git":     git,
-		"date":    date,
+		"name":     appName,
+		"version":  version,
+		"build":    date,
+		"revision": build,
+		"git":      git,
 	}).Info("starting service")
 
 	// разрешаем вывод отладочной информации, включая вывод команд CSTA
