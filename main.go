@@ -19,10 +19,11 @@ import (
 )
 
 var (
-	appName = "mxproxy"                    // название сервиса
-	version = "0.4"                        // версия
-	date    = "2017-08-06"                 // дата сборки
-	git     = ""                           // версия git
+	appName = "mxproxy"    // название сервиса
+	version = "0.1"        // версия
+	date    = "2017-08-06" // дата сборки
+	git     = ""           // версия git
+	build   = ""
 	host    = appName + ".connector73.net" // имя сервера
 	debug   = false                        // флаг вывода отладочной информации
 )
@@ -56,9 +57,10 @@ func main() {
 	log.SetFlags(logFlags)
 	log.WithFields(log.Fields{
 		"version": version,
-		"build":   date,
+		"build":   build,
 		"name":    appName,
 		"git":     git,
+		"date":    date,
 	}).Info("starting service")
 
 	// разрешаем вывод отладочной информации, включая вывод команд CSTA
