@@ -20,12 +20,17 @@ import (
 
 var (
 	appName = "mxproxy"                    // название сервиса
-	version = "1.0.10"                     // версия
-	date    = "2017-08-04"                 // дата сборки
+	version = "0.4"                        // версия
+	date    = "2017-08-06"                 // дата сборки
 	git     = ""                           // версия git
 	host    = appName + ".connector73.net" // имя сервера
 	debug   = false                        // флаг вывода отладочной информации
 )
+
+func init() {
+	// изменяем список символов, для которых в логе идет квотирование
+	log.QuoteWithChars = " \t\r\n\"=\\/:"
+}
 
 var (
 	storeDB     *Store                  // хранилище токенов устройств
@@ -97,7 +102,7 @@ func main() {
 		}
 		log.WithFields(log.Fields{
 			"bundle":     cert.BundleID,
-			"expire":     cert.Expire.Format(time.RFC822),
+			"expire":     cert.Expire.Format("2006-01-02"),
 			"sandbox":    cert.Development,
 			"production": cert.Production,
 		}).Info("apns cert")
@@ -230,7 +235,7 @@ func main() {
 			err = server.ListenAndServe()
 		}
 		if err != nil {
-			log.WithError(err).Warning("http server stoped")
+			log.WithError(err).Error("http server stoped")
 			os.Exit(3)
 		}
 	}()
