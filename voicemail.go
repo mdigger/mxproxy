@@ -160,6 +160,7 @@ func (mx *MX) DeleteVoiceMail(c *rest.Context) error {
 	if err != nil {
 		return err
 	}
+	msgID := c.Param("id")
 	// инициализируем пользовательское соединение с сервером MX
 	client, err := mx.UserClient(login, password)
 	if err != nil {
@@ -175,10 +176,10 @@ func (mx *MX) DeleteVoiceMail(c *rest.Context) error {
 		return err
 	}
 	// отправляем команду на удаление голосового сообщения
-	_, err := client.SendWithResponse(&struct {
+	_, err = client.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"MailDeleteIncoming"`
 		MailID  string   `xml:"mailId"`
-	}{MailID: c.Param("id")}, 0)
+	}{MailID: msgID}, 0)
 	if err != nil {
 		return err
 	}
@@ -186,7 +187,7 @@ func (mx *MX) DeleteVoiceMail(c *rest.Context) error {
 		"mx":     client.SN,
 		"ext":    client.Ext,
 		"mailId": msgID,
-	}).Degug("voicemail deleted")
+	}).Debug("voicemail deleted")
 	return nil
 }
 
