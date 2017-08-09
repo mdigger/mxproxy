@@ -163,11 +163,16 @@ func main() {
 		mux.Handle("GET", prefix+"calllog", mx.GetCallLog)
 		mux.Handle("POST", prefix+"call", mx.PostCall)
 		mux.Handle("POST", prefix+"token/:type/:bundle", mx.AddToken)
+		mux.Handle("GET", prefix+"voicemail", mx.VoiceMailList)
+		mux.Handle("GET", prefix+"voicemail/:id", mx.GetVoiceMail)
+		mux.Handle("DELETE", prefix+"voicemail/:id", mx.DeleteVoiceMail)
+		mux.Handle("PATCH", prefix+"voicemail/:id", mx.PatchVoiceMail)
 
 		// запускаем мониторинг ответов сервера MX
 		go func(log *log.Context) {
 		monitoring:
 			err := mx.Monitoring()
+			// TODO: здесь проблема с параллельным чтением и записью stoping
 			if stoping {
 				return
 			}
@@ -187,24 +192,24 @@ func main() {
 		// зарегистрированных пользователей
 	}
 
-	if debug {
-		// добавляем для отладки вывод хранилище в виде JSON
-		var path = "/db"
-		mux.Handle("GET", path, func(c *rest.Context) error {
-			dbjson, err := storeDB.json()
-			if err != nil {
-				return err
-			}
-			return c.Write(dbjson)
-		})
-	}
+	// if debug {
+	// 	// добавляем для отладки вывод хранилище в виде JSON
+	// 	var path = "/db"
+	// 	mux.Handle("GET", path, func(c *rest.Context) error {
+	// 		dbjson, err := storeDB.json()
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		return c.Write(dbjson)
+	// 	})
+	// }
 
 	// инициализируем HTTP сервер
 	server := &http.Server{
 		Addr:         host,
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
-		WriteTimeout: time.Second * 20,
+		WriteTimeout: time.Minute * 5,
 	}
 	// добавляем автоматическую поддержку TLS сертификатов для сервиса
 	if !strings.HasPrefix(host, "localhost") &&

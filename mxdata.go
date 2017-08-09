@@ -1,6 +1,11 @@
 package main
 
-import "github.com/mdigger/csta"
+import (
+	"encoding/xml"
+	"time"
+
+	"github.com/mdigger/csta"
+)
 
 // CSTAError описывает ошибку CSTA.
 type CSTAError struct {
@@ -62,4 +67,26 @@ type MXDelivery struct {
 	Cause                 string `xml:"cause" json:"cause"`
 	CallTypeFlags         uint32 `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
 	Timestamp             int64  `xml:"-" json:"time"`
+}
+
+type MXVoiceMail struct {
+	From       string        `xml:"from,attr" json:"from"`
+	FromName   string        `xml:"fromName,attr" json:"fromName,omitempty"`
+	CallerName string        `xml:"callerName,attr" json:"callerName,omitempty"`
+	To         string        `xml:"to,attr" json:"to"`
+	OwnerType  string        `xml:"ownerType,attr" json:"ownerType"`
+	MailId     string        `xml:"mailId" json:"id"`
+	Received   int64         `xml:"received" json:"received"`
+	Duration   time.Duration `xml:"duration" json:"duration,omitempty"`
+	Read       bool          `xml:"read" json:"read,omitempty"`
+	Note       string        `xml:"note" json:"note,omitempty"`
+}
+
+type MXVoiceMailChunk struct {
+	MailId       string       `xml:"mailId,attr" json:"id"`
+	Number       int          `xml:"chunkNumber,attr"`
+	Total        int          `xml:"totalChunks,attr"`
+	Format       string       `xml:"fileFormat"`
+	DocName      string       `xml:"documentName"`
+	MediaContent xml.CharData `xml:"mediaContent"`
 }
