@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/xml"
 	"net"
+	"time"
 
 	"github.com/mdigger/csta"
+	"github.com/mdigger/log"
 	"github.com/mdigger/rest"
 )
 
@@ -24,7 +26,8 @@ func (mx *MX) GetCallLog(c *rest.Context) error {
 
 	// разбираем параметра timestamp
 	var ts int64 = -1
-	if timestamp := csta.ParseTimestamp(c.Query("timestamp")); !timestamp.IsZero() {
+	timestamp := csta.ParseTimestamp(c.Query("timestamp"))
+	if !timestamp.IsZero() {
 		ts = timestamp.Unix()
 	}
 	if _, err := client.Send(&struct {
@@ -46,6 +49,12 @@ read:
 		// в случае таймаута возвращаем пустой лог, потому что нет другого
 		// способа определить, что сервер не возвращает ответ
 		if errNet, ok := err.(net.Error); ok && errNet.Timeout() {
+			log.WithFields(log.Fields{
+				"mx":       client.SN,
+				"ext":      client.Ext,
+				"count":    0,
+				"fromTime": timestamp.Format(time.RFC3339),
+			}).Debug("user empty call log")
 			return nil
 		}
 		return err
@@ -60,5 +69,11 @@ read:
 	if err := responce.Decode(calllog); err != nil {
 		return err
 	}
+	log.WithFields(log.Fields{
+		"mx":       client.SN,
+		"ext":      client.Ext,
+		"count":    len(calllog.LogItems),
+		"fromTime": timestamp.Format(time.RFC3339),
+	}).Debug("user call log")
 	return c.Write(rest.JSON{"callog": calllog.LogItems})
 }

@@ -34,7 +34,7 @@ func (mx *MX) CallMonsStart(jids ...csta.JID) error {
 		ctxlog.WithFields(log.Fields{
 			"jid": jid,
 			"ext": contact.Ext,
-		}).Info("starting call monitor")
+		}).Debug("starting call monitor")
 		id, err := mx.Send(cmd)
 		if err != nil {
 			return err
@@ -61,7 +61,7 @@ func (mx *MX) CallMonsStop(jids ...csta.JID) error {
 		if cmd.ID != 0 {
 			continue
 		}
-		ctxlog.WithField("jid", jid).Info("stoping call monitor")
+		ctxlog.WithField("jid", jid).Debug("stoping call monitor")
 		if _, err := mx.Send(cmd); err != nil {
 			return err
 		}

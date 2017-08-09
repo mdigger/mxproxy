@@ -3,3 +3,5 @@ mxproxy
 *.json
 *.p12
 build/
+
+*.log

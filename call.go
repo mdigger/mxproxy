@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 
+	"github.com/mdigger/log"
 	"github.com/mdigger/rest"
 )
 
@@ -88,6 +89,12 @@ func (mx *MX) PostCall(c *rest.Context) error {
 		if err := resp.Decode(result); err != nil {
 			return err
 		}
+		log.WithFields(log.Fields{
+			"mx":   client.SN,
+			"ext":  client.Ext,
+			"from": params.From,
+			"to":   params.To,
+		}).Debug("make call")
 		return c.Write(result)
 	default:
 		return fmt.Errorf("unknown makecall response %s", resp.Name)

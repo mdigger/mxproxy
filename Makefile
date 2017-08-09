@@ -27,7 +27,10 @@ info:
 	@echo "---------------------"
 
 build:
-	go build -race $(FLAGS)
+	go build -race -o $(appname) $(FLAGS)
+
+debug: build
+	./$(appname) -host localhost:8000 -debug -csta > csta.log
 
 clean:
 	rm -rf build/
