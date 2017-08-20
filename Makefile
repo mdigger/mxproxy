@@ -1,15 +1,9 @@
-appname := mxproxy
+appname  := mxproxy
 
-DATE    := $(shell date -u +%Y-%m-%d)
-VER     := $(or $(shell git describe --abbrev=0 --tags), "0.0")
-BUILD   := $(shell git rev-list --all --count)
-GIT     := $(shell git rev-parse --short HEAD)
+DATE     := $(shell date -u +%Y-%m-%d)
+GIT      := $(shell git describe --tag --long --always --dirty 2>/dev/null)
+FLAGS   := -ldflags "-X main.git=$(GIT) -X main.date=$(DATE)"
 
-LTAG_COM := $(shell git rev-list --tags --max-count=1)
-LTAG     := $(shell git describe --tags $(LTAG_COM))
-REV      := $(shell git rev-list $(LTAG).. --count)
-
-FLAGS   := -ldflags "-X main.date=$(DATE) -X main.version=$(VER).$(REV) -X main.build=$(BUILD) -X main.git=$(GIT)"
 
 build = GOOS=$(1) GOARCH=$(2) go build -o build/$(appname)$(3) $(FLAGS)
 tar = cd ./build && tar -czf $(1)_$(2).tar.gz $(appname)$(3) && rm $(appname)$(3)
@@ -17,20 +11,19 @@ zip = cd ./build && zip $(1)_$(2).zip $(appname)$(3) && rm $(appname)$(3)
 
 .PHONY: all windows darwin linux clean build
 
-info:
-	@echo "---------------------"
-	@echo "Date:       $(DATE)"
-	@echo "Version:    $(VER)"
-	@echo "Revision:   $(REV)"
-	@echo "Build:      $(BUILD)"
-	@echo "GIT:        $(GIT)"
-	@echo "---------------------"
 
-build:
+info:
+	@echo "-----------------------------"
+	@echo "Go:   $(subst go version ,,$(shell go version))"
+	@echo "Date: $(DATE)"
+	@echo "Git:  $(GIT)"
+	@echo "-----------------------------"
+
+build: info
 	go build -race -o $(appname) $(FLAGS)
 
 debug: build
-	./$(appname) -host localhost:8000 -debug -csta > csta.log
+	./$(appname) -host localhost:8000 -debug -csta -logflag 192 > csta.log
 
 clean:
 	rm -rf build/

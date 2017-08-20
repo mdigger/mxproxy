@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/gob"
 	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/mdigger/csta"
 	"github.com/mdigger/log"
-	"github.com/mdigger/rest"
+	"github.com/mdigger/mx"
 )
 
 // Store предоставляет доступ к хранилищу токенов устройств пользователей для
@@ -22,28 +23,30 @@ func OpenStore(filename string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.WithField("file", filename).Info("tokens db")
 	return &Store{db: db}, nil
 }
 
 // Close закрывает хранилище токенов устройств.
 func (s *Store) Close() error {
+	log.Info("tokens db closed")
 	return s.db.Close()
 }
 
 // bucketUsersName задает название раздела с пользователями.
 var bucketUsersName = []byte("#users")
 
-// Add добавляет в хранилище ассоциацию пользователя и токена.
-func (s *Store) Add(user, bundle, token string) error {
+// TokenAdd добавляет токен с привязкой к пользователю и приложению.
+func (s *Store) TokenAdd(mxuser, topicID, token string) error {
 	ctxlog := log.WithFields(log.Fields{
-		"user":   user,
-		"bundle": bundle,
+		"user":   mxuser,
+		"bundle": topicID,
 		"token":  token,
 		"type":   "store",
 	})
 	return s.db.Update(func(tx *bolt.Tx) error {
 		// открываем раздел токенов для указанного приложения
-		bBundle, err := tx.CreateBucketIfNotExists([]byte(bundle))
+		bBundle, err := tx.CreateBucketIfNotExists([]byte(topicID))
 		if err != nil {
 			return err
 		}
@@ -54,85 +57,86 @@ func (s *Store) Add(user, bundle, token string) error {
 		}
 		// получаем идентификатор пользователя, ассоциированный с данным
 		// токеном, если он был раньше ассоциирован
-		userId := bBundle.Get([]byte(token))
+		var userID = bBundle.Get([]byte(token))
 		// если токен был ассоциирован с другим пользователем, то сначала
 		// удаляем эту ассоциацию
-		if userId != nil && string(userId) != user {
-			ctxlog := ctxlog.WithField("user", string(userId))
+		if userID != nil && string(userID) != mxuser {
+			ctxlog := ctxlog.WithField("user", string(userID))
 			// получаем данные о пользователе, удаляем токен и сохраняем
-			tokens := ParseTokens(bUsers.Get(userId))
+			tokens := ParseTokens(bUsers.Get(userID))
 			ctxlog.Debug("remove user token")
-			tokens.Remove(bundle, token)
+			tokens.Remove(topicID, token)
 			if len(tokens) == 0 {
 				ctxlog.Debug("remove empty user")
-				err = bUsers.Delete(userId)
+				err = bUsers.Delete(userID)
 			} else {
-				err = bUsers.Put(userId, tokens.Bytes())
+				err = bUsers.Put(userID, tokens.Bytes())
 			}
 			if err != nil {
 				return err
 			}
 		}
 		// получаем данные о пользователе, добавляем токен и сохраняем
-		tokens := ParseTokens(bUsers.Get([]byte(user)))
+		var tokens = ParseTokens(bUsers.Get([]byte(mxuser)))
 		ctxlog.Debug("add token")
-		tokens.Add(bundle, token)
-		if err := bUsers.Put([]byte(user), tokens.Bytes()); err != nil {
+		tokens.Add(topicID, token)
+		if err := bUsers.Put([]byte(mxuser), tokens.Bytes()); err != nil {
 			return err
 		}
 		// сохраняем ассоциацию токена и пользователя
-		return bBundle.Put([]byte(token), []byte(user))
+		return bBundle.Put([]byte(token), []byte(mxuser))
 	})
 }
 
-// Remove удаляет токен из хранилища.
-func (s *Store) Remove(bundle, token string) error {
+// TokenRemove удаляет токен из хранилища.
+func (s *Store) TokenRemove(topicID, token string) error {
 	ctxlog := log.WithFields(log.Fields{
-		"bundle": bundle,
+		"bundle": topicID,
 		"token":  token,
 		"type":   "store",
 	})
 	return s.db.Update(func(tx *bolt.Tx) error {
 		// открываем раздел с токенами для приложения
-		bBundle := tx.Bucket([]byte(bundle))
+		var bBundle = tx.Bucket([]byte(topicID))
 		if bBundle == nil {
 			return nil // ни одного токена для приложения нет
 		}
 		// получаем идентификатор пользователя, ассоциированный с данным токеном
-		userId := bBundle.Get([]byte(token))
-		if userId == nil {
+		var userID = bBundle.Get([]byte(token))
+		if userID == nil {
 			return nil // токен не зарегистрирован
 		}
-		ctxlog = ctxlog.WithField("user", string(userId))
+		ctxlog = ctxlog.WithField("user", string(userID))
 		// удаляем запись с токеном из хранилища
 		ctxlog.Debug("remove bundle token")
 		bBundle.Delete([]byte(token))
 		// открываем раздел с пользователями
-		bUsers := tx.Bucket(bucketUsersName)
+		var bUsers = tx.Bucket(bucketUsersName)
 		if bUsers == nil {
 			return nil // раздел с пользователями пустой
 		}
 		// получаем данные о пользователе, удаляем токен и сохраняем
-		tokens := ParseTokens(bUsers.Get(userId))
+		var tokens = ParseTokens(bUsers.Get(userID))
 		ctxlog.Debug("remove user token")
-		tokens.Remove(bundle, token)
+		tokens.Remove(topicID, token)
 		var err error
 		if len(tokens) == 0 {
 			ctxlog.Debug("remove empty user")
-			err = bUsers.Delete(userId)
+			err = bUsers.Delete(userID)
 		} else {
-			err = bUsers.Put(userId, tokens.Bytes())
+			err = bUsers.Put(userID, tokens.Bytes())
 		}
 		return err
 	})
 }
 
-// Get возвращает список токенов пользователя.
-func (s *Store) Get(user string) (Tokens, error) {
+// Tokens возвращает список токенов пользователя, сгруппированный по типу
+// и идентификатору сертификата.
+func (s *Store) Tokens(mxuser string) (Tokens, error) {
 	var tokens Tokens
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		if bUsers := tx.Bucket(bucketUsersName); bUsers != nil {
-			tokens = ParseTokens(bUsers.Get([]byte(user)))
+			tokens = ParseTokens(bUsers.Get([]byte(mxuser)))
 		}
 		return nil
 	}); err != nil {
@@ -141,22 +145,22 @@ func (s *Store) Get(user string) (Tokens, error) {
 	return tokens, nil
 }
 
-// Users возвращает список идентификаторов пользователей, зарегистрированных
-// для данного MX.
-func (s *Store) Users(mx string) ([]csta.JID, error) {
-	var mxprefix = []byte(mx + ":")
-	var users = make([]csta.JID, 0)
+// Users возвращает список идентификиторов пользователей, сохраненных в
+// хранилище, которые относятся к указанному MX серверу.
+func (s *Store) Users(mxID string) ([]mx.JID, error) {
+	var mxprefix = []byte(mxID + ":")
+	var users = make([]mx.JID, 0)
 	if err := s.db.View(func(tx *bolt.Tx) error {
-		bUsers := tx.Bucket(bucketUsersName)
+		var bUsers = tx.Bucket(bucketUsersName)
 		if bUsers == nil {
 			return nil
 		}
-		cursor := bUsers.Cursor()
+		var cursor = bUsers.Cursor()
 		for k, _ := cursor.Seek(mxprefix); k != nil &&
 			bytes.HasPrefix(k, mxprefix); k, _ = cursor.Next() {
 			jid, err := csta.ParseJID(string(k[len(mxprefix):]))
 			if err == nil {
-				users = append(users, csta.JID(jid))
+				users = append(users, mx.JID(jid))
 			}
 		}
 		return nil
@@ -166,30 +170,46 @@ func (s *Store) Users(mx string) ([]csta.JID, error) {
 	return users, nil
 }
 
-// json возвращает представление хранилища в виде объекта в формате JSON.
-// Используется исключительно в отладочных целях, т.к. при большом объеме
-// хранилища может оказаться слишком затратным по памяти.
-func (s *Store) json() (rest.JSON, error) {
-	var backup = make(rest.JSON)
-	if err := s.db.View(func(tx *bolt.Tx) error {
-		return tx.ForEach(func(name []byte, b *bolt.Bucket) error {
-			var section = make(rest.JSON, b.Stats().KeyN)
-			if err := b.ForEach(func(k, v []byte) error {
-				if bytes.Equal(bucketUsersName, name) {
-					section[string(k)] = ParseTokens(v)
-				} else {
-					section[string(k)] = string(v)
-				}
-				return nil
-			}); err != nil {
-				return err
-			}
-			backup[string(name)] = section
-			return nil
-		})
+// Tokens описывает список токенов, ассоциированных с пользователем.
+// Первым ключем идет тип токена (apn|fcm) и topic id, потом сам токен
+// устройства. В качестве значения задается время последнего внесения токена
+// в список.
+type Tokens map[string]map[string]time.Time
 
-	}); err != nil {
-		return nil, err
+// ParseTokens восстанавливает список токенов пользователя из их
+// бинарного представления в формате gob.
+func ParseTokens(data []byte) Tokens {
+	tokens := make(Tokens)
+	gob.NewDecoder(bytes.NewReader(data)).Decode(&tokens)
+	return tokens
+}
+
+// Bytes возвращает бинарное представление списка токенов. Для кодирования
+// используется формат gob.
+func (u Tokens) Bytes() []byte {
+	var buf = new(bytes.Buffer)
+	gob.NewEncoder(buf).Encode(u)
+	return buf.Bytes()
+}
+
+// Add добавляет в список новый токен устройства с привязкой к идентификатору
+// приложения. Если такой токен уже был в списке, то обновляется время
+// его создания.
+func (u Tokens) Add(topicID, token string) {
+	var tokens = u[topicID]
+	if tokens == nil {
+		tokens = make(map[string]time.Time)
 	}
-	return backup, nil
+	tokens[token] = time.Now().UTC()
+	u[topicID] = tokens
+}
+
+// Remove удаляет из списка токен устройства с привязкой к идентификатору
+// приложения. Если такой токен раньше не был в списке, ошибки не происходит.
+func (u Tokens) Remove(topicID, token string) {
+	var tokens = u[topicID]
+	delete(tokens, token)
+	if len(tokens) == 0 {
+		delete(u, topicID)
+	}
 }

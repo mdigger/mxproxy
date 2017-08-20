@@ -2,35 +2,23 @@ package main
 
 import (
 	"encoding/xml"
-	"net"
+	"sort"
 	"time"
 
-	"github.com/mdigger/csta"
 	"github.com/mdigger/log"
-	"github.com/mdigger/rest"
+	"github.com/mdigger/mx"
 )
 
-// GetCallLog отдает пользовательский лог звонков.
-func (mx *MX) GetCallLog(c *rest.Context) error {
-	// проверяем авторизацию пользователя
-	login, password, err := Authorize(c)
-	if err != nil {
-		return err
-	}
-	// инициализируем пользовательское соединение с сервером MX
-	client, err := mx.UserClient(login, password)
-	if err != nil {
-		return httpError(c, err)
-	}
-	defer client.Close()
-
-	// разбираем параметра timestamp
-	var ts int64 = -1
-	timestamp := csta.ParseTimestamp(c.Query("timestamp"))
-	if !timestamp.IsZero() {
+// CallLog возвращает информацию о звонках пользователя.
+func (c *MXClient) CallLog(timestamp time.Time) ([]*CallInfo, error) {
+	// формируем и отправляем команду получения лога звонков пользователя
+	var ts int64
+	if timestamp.IsZero() {
+		ts = -1
+	} else {
 		ts = timestamp.Unix()
 	}
-	if _, err := client.Send(&struct {
+	if err := c.conn.Send(&struct {
 		XMLName   xml.Name `xml:"iq"`
 		Type      string   `xml:"type,attr"`
 		ID        string   `xml:"id,attr"`
@@ -40,40 +28,62 @@ func (mx *MX) GetCallLog(c *rest.Context) error {
 		ID:        "calllog",
 		Timestamp: ts,
 	}); err != nil {
-		return err
+		return nil, err
 	}
-	client.SetWait(MXReadTimeout)
-read:
-	responce, err := client.Receive()
-	if err != nil {
-		// в случае таймаута возвращаем пустой лог, потому что нет другого
-		// способа определить, что сервер не возвращает ответ
-		if errNet, ok := err.(net.Error); ok && errNet.Timeout() {
-			log.WithFields(log.Fields{
-				"mx":       client.SN,
-				"ext":      client.Ext,
-				"count":    0,
-				"fromTime": timestamp.Format(time.RFC3339),
-			}).Debug("user empty call log")
-			return nil
+
+	// разбор ответов сервера
+	var callLog []*CallInfo
+	err := c.conn.HandleWait(func(resp *mx.Response) error {
+		var items = new(struct {
+			LogItems []*CallInfo `xml:"callinfo"`
+		})
+		if err := resp.Decode(items); err != nil {
+			return err
 		}
-		return err
+		if callLog == nil {
+			callLog = items.LogItems
+		} else {
+			callLog = append(callLog, items.LogItems...)
+		}
+		// BUG (d3): единственный способ, который я нашел для отслеживания
+		// окончания лога звонков, это проверять количество звонков в ответе
+		// блока - обычно блоки разбиты по 21.
+		if len(items.LogItems) < 21 {
+			return mx.Stop
+		}
+		return nil
+	}, mx.ReadTimeout, "callloginfo")
+	if err != nil && err != mx.ErrTimeout {
+		return nil, err
 	}
-	if responce.Name != "callloginfo" { // игнорируем все ответы, кроме лога
-		goto read
-	}
-	client.SetWait(0)
-	var calllog = new(struct {
-		LogItems []*MXCallInfo `xml:"callinfo"`
+	// сортируем по номеру записи
+	sort.Slice(callLog, func(i, j int) bool {
+		return callLog[i].RecordID < callLog[j].RecordID
 	})
-	if err := responce.Decode(calllog); err != nil {
-		return err
-	}
-	log.WithFields(log.Fields{
-		"mx":       client.SN,
-		"ext":      client.Ext,
-		"count":    len(calllog.LogItems),
-		"fromTime": timestamp.Format(time.RFC3339),
-	}).Debug("user call log")
-	return c.Write(rest.JSON{"callog": calllog.LogItems})
+	c.log.WithFields(log.Fields{
+		"count":     len(callLog),
+		"timestamp": ts,
+	}).Debug("calllog")
+	return callLog, nil
+}
+
+// CallInfo описывает информацию о записи в логе звонков.
+type CallInfo struct {
+	Missed                bool   `xml:"missed,attr" json:"missed,omitempty"`
+	Direction             string `xml:"direction,attr" json:"direction"`
+	RecordID              int32  `xml:"record_id" json:"recordId"`
+	GCID                  string `xml:"gcid" json:"gcid"`
+	ConnectTimestamp      int64  `xml:"connectTimestamp" json:"connect,omitempty"`
+	DisconnectTimestamp   int64  `xml:"disconnectTimestamp" json:"disconnect,omitempty"`
+	CallingPartyNo        string `xml:"callingPartyNo" json:"callingPartyNo"`
+	OriginalCalledPartyNo string `xml:"originalCalledPartyNo" json:"originalCalledPartyNo"`
+	FirstName             string `xml:"firstName" json:"firstName,omitempty"`
+	LastName              string `xml:"lastName" json:"lastName,omitempty"`
+	Extension             string `xml:"extension" json:"ext,omitempty"`
+	ServiceName           string `xml:"serviceName" json:"serviceName,omitempty"`
+	ServiceExtension      string `xml:"serviceExtension" json:"serviceExtension,omitempty"`
+	CallType              int32  `xml:"callType" json:"callType,omitempty"`
+	LegType               int32  `xml:"legType" json:"legType,omitempty"`
+	SelfLegType           int32  `xml:"selfLegType" json:"selfLegType,omitempty"`
+	MonitorType           int32  `xml:"monitorType" json:"monitorType,omitempty"`
 }

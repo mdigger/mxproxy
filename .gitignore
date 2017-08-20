@@ -1,7 +1,6 @@
+build/
 mxproxy
 *.db
 *.json
 *.p12
-build/
-
 *.log
