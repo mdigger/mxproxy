@@ -60,7 +60,7 @@ func (s *MXServer) MonitorStop(jids ...mx.JID) (err error) {
 // случае ошибки соединения.
 func (s *MXServer) CallMonitor(
 	sendPush func(userID string, payload interface{}) error) error {
-	s.log.Debug("call monitor started")
+	s.log.Debug("calls monitor started")
 	var err = s.conn.Handle(func(resp *mx.Response) error {
 		var delivery = new(Delivery)
 		if err := resp.Decode(delivery); err != nil {
@@ -86,7 +86,7 @@ func (s *MXServer) CallMonitor(
 		sendPush(userID, delivery)
 		return nil
 	}, "DeliveredEvent")
-	s.log.Debug("call monitor stoped")
+	s.log.Debug("calls monitor stoped")
 	return err
 }
 

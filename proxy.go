@@ -14,6 +14,9 @@ import (
 	"github.com/yosuke-furukawa/json5/encoding/json5"
 )
 
+// ReconnectDelay задает время задержки между переподключением к серверу MX.
+var ReconnectDelay = time.Minute
+
 // Proxy описывает HTTP-прокси сервер для MX.
 type Proxy struct {
 	servers *MXList           // список серверных соединений MX
@@ -36,6 +39,13 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 			Login    string `json:"login"`    // серверный логин
 			Password string `json:"password"` // пароль
 		} `json:"mx"`
+		// временные ограничения
+		Timeouts struct {
+			Connect   Duration `json:"connectTimeout"`
+			Read      Duration `json:"readTimeout"`
+			Reconnect Duration `json:"reconnectDelay"`
+			KeepAlive Duration `json:"keepAliveDuration"`
+		} `json:"timeouts"`
 		// список файлов с сертификатами APNS и паролями для их чтения
 		APN map[string]string `json:"apn"`
 		// список идентификаторов приложений Android и ассоциированных с ними
@@ -46,8 +56,22 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 		return nil, err
 	}
 	log.WithField("file", configName).Info("config")
-	// загружаем сертификаты для Apple Push Notification
 
+	// устанавливаем таймауты
+	if config.Timeouts.Connect.Duration > 0 {
+		mx.ConnectionTimeout = config.Timeouts.Connect.Duration
+	}
+	if config.Timeouts.Read.Duration > 0 {
+		mx.ReadTimeout = config.Timeouts.Read.Duration
+	}
+	if config.Timeouts.KeepAlive.Duration > 0 {
+		mx.KeepAliveDuration = config.Timeouts.KeepAlive.Duration
+	}
+	if config.Timeouts.Reconnect.Duration > 0 {
+		ReconnectDelay = config.Timeouts.Reconnect.Duration
+	}
+
+	// загружаем сертификаты для Apple Push Notification
 	var apns = new(APNS)
 	for filename, password := range config.APN {
 		if err := apns.LoadCertificate(filename, password); err != nil {
@@ -57,7 +81,7 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 	// сохраняем ключи для Firebase Cloud Messages
 	var fcm = config.FCM
 	for name := range fcm {
-		log.WithField("topic", name).Info("fcm app")
+		log.WithField("app", name).Info("fcm application key")
 	}
 	// открываем хранилище токенов устройств для уведомлений
 	store, err := OpenStore(tokensDBName)
@@ -89,33 +113,27 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 		}
 		mxlist.Add(mxs) // сохраняем в списке
 
-		// запускаем мониторы пользователей
-		jids, err := store.Users(mxs.ID())
-		if err != nil {
-			log.WithError(err).Warning("get mx user error")
-			continue
-		}
-		if err = mxs.MonitorStart(jids...); err != nil {
-			log.WithError(err).Warning("starting users monitors error")
-			continue
-		}
-
-		// запускаем мониторинг звонков и восстановление соединения
+		// восстановление соединения в случае разрыва
 		go func(mxs *MXServer) {
 		monitoring:
-			// вызываем мониторинг звонков и передаем ему функцию для отправки
-			// уведомлений
-			err := mxs.CallMonitor(proxy.SendPush)
-			mxs.log.WithError(err).Warning("mx server connection error")
+			// запускаем мониторы пользователей
+			if jids, err := store.Users(mxs.ID()); err != nil {
+				log.WithError(err).Warning("get mx user error")
+			} else if err = mxs.MonitorStart(jids...); err != nil {
+				log.WithError(err).Warning("starting users monitors error")
+			}
+			go mxs.CallMonitor(proxy.SendPush) // запускаем мониторинг звонков
+			<-mxs.conn.Done()                  // ждем окончания соединения
 		reconnect:
-			time.Sleep(time.Minute)
-			mxs.log.Info("reconnecting...")
+			mxs.log.Infof("reconnect after %s...", ReconnectDelay)
+			time.Sleep(ReconnectDelay)
 			newmxs, err := ConnectMXServer(mxs.host, mxs.login, mxs.password)
 			if err != nil {
 				mxs.log.WithError(err).Warning("mx server connection error")
 				goto reconnect
 			}
 			mxlist.Add(newmxs) // сохраняем в списке
+			mxs = newmxs       // подменяем старое соединение
 			goto monitoring
 		}(mxs)
 	}
