@@ -2,10 +2,15 @@ package main
 
 import (
 	"encoding/xml"
+	"errors"
 	"time"
 
 	"github.com/mdigger/log"
 )
+
+// ErrNotAssigned возвращается при ошибке назначения устройства при ответе на
+// SIP звонок.
+var ErrNotAssigned = errors.New("not assigned")
 
 // SIPAnswer подтверждает прием звонка по SIP.
 func (c *MXClient) SIPAnswer(callID int64, deviceID, sipName string,
@@ -13,12 +18,18 @@ func (c *MXClient) SIPAnswer(callID int64, deviceID, sipName string,
 	if _, err := c.conn.MonitorStart(""); err != nil {
 		return err
 	}
+	c.log.WithFields(log.Fields{
+		"callId":   callID,
+		"deviceId": deviceID,
+		"sipName":  sipName,
+		"timeout":  timeout.Seconds(),
+	}).Debug("sip answer")
 	// отправляем команду для ассоциации устройства по имени
 	type device struct {
 		Type string `xml:"type,attr"`
 		Name string `xml:",chardata"`
 	}
-	if _, err := c.conn.SendWithResponse(&struct {
+	resp, err := c.conn.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"AssignDevice"`
 		Device  device   `xml:"deviceID"`
 	}{
@@ -26,11 +37,22 @@ func (c *MXClient) SIPAnswer(callID int64, deviceID, sipName string,
 			Type: "device",
 			Name: sipName,
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
+	// разбираем ответ
+	var assign = new(struct {
+		DeviceID string `xml:"AssignDeviceInfo>deviceID"`
+	})
+	if err = resp.Decode(assign); err != nil {
+		return err
+	}
+	if assign.DeviceID != sipName {
+		return ErrNotAssigned
+	}
 	// теперь отправляем команду на подтверждение звонка
-	_, err := c.conn.SendWithResponseTimeout(&struct {
+	_, err = c.conn.SendWithResponseTimeout(&struct {
 		XMLName  xml.Name `xml:"AnswerCall"`
 		CallID   int64    `xml:"callToBeAnswered>callID"`
 		DeviceID string   `xml:"callToBeAnswered>deviceID"`

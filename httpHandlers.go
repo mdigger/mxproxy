@@ -119,6 +119,8 @@ func (p *Proxy) PostSIPAnswer(c *rest.Context) error {
 		params.SIPName, params.Timeout*time.Second)
 	if err == mx.ErrTimeout {
 		return c.Error(http.StatusRequestTimeout, err.Error())
+	} else if err == ErrNotAssigned {
+		return c.Error(http.StatusBadRequest, err.Error())
 	}
 	return err
 }
