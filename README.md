@@ -26,13 +26,13 @@ Authorization: Basic ZG06Nzg1NjE=
             "jid": 43884852633771555,
             "firstName": "SMS",
             "lastName": "Gateway C73",
-            "ext": "3010"
+            "extension": "3010"
         },
         {
             "jid": 43884851428118509,
             "firstName": "Peter",
             "lastName": "Hyde",
-            "ext": "3044",
+            "extension": "3044",
             "homePhone": "+1-202-555-0104",
             "cellPhone": "+1-512-555-0136",
             "email": "peterh@xyzrd.com",
@@ -42,7 +42,7 @@ Authorization: Basic ZG06Nzg1NjE=
             "jid": 43884850646482261,
             "firstName": "Mike",
             "lastName": "Flynn",
-            "ext": "3055",
+            "extension": "3055",
             "homePhone": "+1-202-555-0104",
             "cellPhone": "+1-512-555-0136",
             "email": "mikef@xyzrd.com"
@@ -51,7 +51,7 @@ Authorization: Basic ZG06Nzg1NjE=
             "jid": 43884851147406145,
             "firstName": "Dmitry",
             "lastName": "Sedykh",
-            "ext": "3095",
+            "extension": "3095",
             "cellPhone": "+79031744445",
             "email": "dmitrys@xyzrd.com"
         },
@@ -59,13 +59,13 @@ Authorization: Basic ZG06Nzg1NjE=
             "jid": 43884851851343044,
             "firstName": "Sergey",
             "lastName": "Kananykhin",
-            "ext": "3096"
+            "extension": "3096"
         },
         {
             "jid": 43884851324615074,
             "firstName": "John",
             "lastName": "Smith",
-            "ext": "3098",
+            "extension": "3098",
             "cellPhone": "12035160992",
             "did": "12035160992"
         },
@@ -73,14 +73,14 @@ Authorization: Basic ZG06Nzg1NjE=
             "jid": 43884852031096113,
             "firstName": "Maxim",
             "lastName": "Donchenko",
-            "ext": "3099",
+            "extension": "3099",
             "cellPhone": "+420720961083"
         }
     ]
 }
 ```
 
-У контакта поддерживаются следующие поля: `jid`, `firstName`, `lastName`, `ext`, `homePhone`, `cellPhone`, `email`, `homeSystem`, `did`, `exchangeId`. Поля с пустыми значениями могут быть опущены.
+У контакта поддерживаются следующие поля: `jid`, `firstName`, `lastName`, `extension`, `homePhone`, `cellPhone`, `email`, `homeSystem`, `did`, `exchangeId`. Поля с пустыми значениями могут быть опущены.
 
 ### Поиск контакта
 
@@ -89,7 +89,7 @@ GET /mx/<mx-id>/contacts/<contact-id>
 Authorization: Basic ZG06Nzg1NjE=
 ```
 
-Возвращает информацию о контакте. В качестве идентификатора контакта можно использовать его уникальный идентификатор (`jid`), внутренний номер (`ext`) или `email` адрес. Если ничего не найдено, то возвращается ошибка `404`.
+Возвращает информацию о контакте. В качестве идентификатора контакта можно использовать его уникальный идентификатор (`jid`), внутренний номер (`extension`) или `email` адрес. Если ничего не найдено, то возвращается ошибка `404`.
 
 ```json
 {
@@ -97,7 +97,7 @@ Authorization: Basic ZG06Nzg1NjE=
         "jid": 43884852633771555,
         "firstName": "SMS",
         "lastName": "Gateway C73",
-        "ext": "3010"
+        "extension": "3010"
     }
 }
 ```
@@ -126,7 +126,7 @@ Content-Type: application/json; charset=utf-8
     "call": {
         "callId": 186,
         "deviceId": "3095",
-        "called": "79031744437"
+        "calledDevice": "79031744437"
     }
 }
 ```
@@ -165,9 +165,9 @@ Authorization: Basic ZG06Nzg1NjE=
   "calllog": [
     {
         "direction": "outgoing",
-        "recordId": 961,
+        "record_id": 961,
         "gcid": "63022-00-0000D-3AD",
-        "disconnect": 1503203445,
+        "disconnectTimestamp": 1503203445,
         "callingPartyNo": "79031744445",
         "originalCalledPartyNo": "79031744437",
         "callType": 1,
@@ -176,9 +176,9 @@ Authorization: Basic ZG06Nzg1NjE=
     },
     {
         "direction": "outgoing",
-        "recordId": 962,
+        "record_id": 962,
         "gcid": "63022-00-0000D-3AE",
-        "disconnect": 1503204267,
+        "disconnectTimestamp": 1503204267,
         "callingPartyNo": "79031744445",
         "originalCalledPartyNo": "79031744437",
         "callType": 1,
@@ -188,15 +188,15 @@ Authorization: Basic ZG06Nzg1NjE=
     {
         "missed": true,
         "direction": "incoming",
-        "recordId": 964,
+        "record_id": 964,
         "gcid": "63022-00-0000D-3B0",
-        "connect": 1503204542,
-        "disconnect": 1503204547,
+        "connectTimestamp": 1503204542,
+        "disconnectTimestamp": 1503204547,
         "callingPartyNo": "3044",
         "originalCalledPartyNo": "3095",
         "firstName": "Peter",
         "lastName": "Hyde",
-        "ext": "3044",
+        "extension": "3044",
         "callType": 1,
         "legType": 1,
         "selfLegType": 9
@@ -204,15 +204,15 @@ Authorization: Basic ZG06Nzg1NjE=
     {
         "missed": true,
         "direction": "incoming",
-        "recordId": 967,
+        "record_id": 967,
         "gcid": "63022-00-0000D-3B3",
-        "connect": 1503204601,
-        "disconnect": 1503204603,
+        "connectTimestamp": 1503204601,
+        "disconnectTimestamp": 1503204603,
         "callingPartyNo": "3044",
         "originalCalledPartyNo": "3095",
         "firstName": "Peter",
         "lastName": "Hyde",
-        "ext": "3044",
+        "extension": "3044",
         "callType": 1,
         "legType": 1,
         "selfLegType": 9
@@ -221,7 +221,7 @@ Authorization: Basic ZG06Nzg1NjE=
 }
 ```
 
-Полный список возможных полей: `missed` _(bool)_, `direction`, `recordId` _(number)_, `gcid`, `connect` _(timestamp)_, `disconnect`_(timestamp)_, `callingPartyNo`, `originalCalledPartyNo`, `firstName`, `lastName`, `ext`, `serviceName`, `serviceExtension`, `callType` _(number)_, `legType` _(number)_, `selfLegType` _(number)_, `monitorType` _(number)_. Пустые поля могут быть опущены.
+Полный список возможных полей: `missed` _(bool)_, `direction`, `record_id` _(number)_, `gcid`, `connectTimestamp` _(timestamp)_, `disconnectTimestamp`_(timestamp)_, `callingPartyNo`, `originalCalledPartyNo`, `firstName`, `lastName`, `extension`, `serviceName`, `serviceExtension`, `callType` _(number)_, `legType` _(number)_, `selfLegType` _(number)_, `monitorType` _(number)_. Пустые поля могут быть опущены.
 
 В случае отдачи пустого списка может быть небольшая задержка с ответом до 2-5 секунд.
 
@@ -340,6 +340,26 @@ Authorization: Basic ZG06Nzg1NjE=
 
 {
   "token": "aabb010203040506070809aabb"
+}
+```
+
+## События
+
+При поступлении информации о входящем звонке на отслеживаемый номер пользователя автоматически отправляется push-уведомление на все токены устройств, зарегистрированные в сервисе. Пример формата сообщения:
+
+```json
+{
+    "callId": 190,
+    "deviceId": "3095",
+    "globalCallId": "2808630435142226873",
+    "callingDevice": "3044",
+    "calledDevice": "3095",
+    "alertingDevice": "3095",
+    "lastRedirectionDevice": "3044",
+    "localConnectionInfo": "alerting",
+    "cause": "normal",
+    "callTypeFlags": 170917889,
+    "timestamp": 1502213652
 }
 ```
 

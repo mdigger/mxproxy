@@ -71,19 +71,19 @@ func (c *MXClient) CallLog(timestamp time.Time) ([]*CallInfo, error) {
 type CallInfo struct {
 	Missed                bool   `xml:"missed,attr" json:"missed,omitempty"`
 	Direction             string `xml:"direction,attr" json:"direction"`
-	RecordID              int32  `xml:"record_id" json:"recordId"`
+	RecordID              int64  `xml:"record_id" json:"record_id"`
 	GCID                  string `xml:"gcid" json:"gcid"`
-	ConnectTimestamp      int64  `xml:"connectTimestamp" json:"connect,omitempty"`
-	DisconnectTimestamp   int64  `xml:"disconnectTimestamp" json:"disconnect,omitempty"`
+	ConnectTimestamp      int64  `xml:"connectTimestamp" json:"connectTimestamp,omitempty"`
+	DisconnectTimestamp   int64  `xml:"disconnectTimestamp" json:"disconnectTimestamp,omitempty"`
 	CallingPartyNo        string `xml:"callingPartyNo" json:"callingPartyNo"`
 	OriginalCalledPartyNo string `xml:"originalCalledPartyNo" json:"originalCalledPartyNo"`
 	FirstName             string `xml:"firstName" json:"firstName,omitempty"`
 	LastName              string `xml:"lastName" json:"lastName,omitempty"`
-	Extension             string `xml:"extension" json:"ext,omitempty"`
+	Extension             string `xml:"extension" json:"extension,omitempty"`
 	ServiceName           string `xml:"serviceName" json:"serviceName,omitempty"`
 	ServiceExtension      string `xml:"serviceExtension" json:"serviceExtension,omitempty"`
-	CallType              int32  `xml:"callType" json:"callType,omitempty"`
-	LegType               int32  `xml:"legType" json:"legType,omitempty"`
-	SelfLegType           int32  `xml:"selfLegType" json:"selfLegType,omitempty"`
-	MonitorType           int32  `xml:"monitorType" json:"monitorType,omitempty"`
+	CallType              int64  `xml:"callType" json:"callType,omitempty"`
+	LegType               int64  `xml:"legType" json:"legType,omitempty"`
+	SelfLegType           int64  `xml:"selfLegType" json:"selfLegType,omitempty"`
+	MonitorType           int64  `xml:"monitorType" json:"monitorType,omitempty"`
 }

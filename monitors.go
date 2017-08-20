@@ -96,14 +96,14 @@ type Delivery struct {
 	CallID                int64  `xml:"connection>callID" json:"callId"`
 	DeviceID              string `xml:"connection>deviceID" json:"deviceId"`
 	GlobalCallID          string `xml:"connection>globalCallID" json:"globalCallId"`
-	AlertingDevice        string `xml:"alertingDevice>deviceIdentifier" json:"alertingDevice"`
 	CallingDevice         string `xml:"callingDevice>deviceIdentifier" json:"callingDevice"`
 	CalledDevice          string `xml:"calledDevice>deviceIdentifier" json:"calledDevice"`
+	AlertingDevice        string `xml:"alertingDevice>deviceIdentifier" json:"alertingDevice"`
 	LastRedirectionDevice string `xml:"lastRedirectionDevice>deviceIdentifier" json:"lastRedirectionDevice"`
 	LocalConnectionInfo   string `xml:"localConnectionInfo" json:"localConnectionInfo"`
 	Cause                 string `xml:"cause" json:"cause"`
-	CallTypeFlags         int32  `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
-	Timestamp             int64  `xml:"-" json:"time"`
+	CallTypeFlags         int64  `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
+	Timestamp             int64  `xml:"-" json:"timestamp"`
 }
 
 // Monitors хранит ассоциацию номера запущенного монитора пользователя и

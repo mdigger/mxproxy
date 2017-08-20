@@ -12,7 +12,7 @@ type Contact struct {
 	JID        mx.JID `json:"jid"`
 	FirstName  string `json:"firstName"`
 	LastName   string `json:"lastName"`
-	Ext        string `json:"ext"`
+	Ext        string `json:"extension"`
 	HomePhone  string `json:"homePhone,omitempty"`
 	CellPhone  string `json:"cellPhone,omitempty"`
 	Email      string `json:"email,omitempty"`

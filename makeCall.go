@@ -100,5 +100,5 @@ func (c *MXClient) MakeCall(from, to string, ringDelay, vmDelay uint16) (
 type MakeCallResponse struct {
 	CallID       int64  `xml:"callingDevice>callID" json:"callId"`
 	DeviceID     string `xml:"callingDevice>deviceID" json:"deviceId"`
-	CalledDevice string `xml:"calledDevice" json:"called"`
+	CalledDevice string `xml:"calledDevice" json:"calledDevice"`
 }
