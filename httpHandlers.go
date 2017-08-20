@@ -150,8 +150,7 @@ func (p *Proxy) DeleteVoiceMail(c *rest.Context) error {
 		return err
 	}
 	defer mxclient.Close()
-	// TODO: добавить удаление голосовой почты
-	return rest.ErrNotImplemented
+	return mxclient.VoiceMailDelete(c.Param("id"))
 }
 
 // PatchVoiceMail изменяет заметку и/или флаг прочитанности голосового сообщения.
