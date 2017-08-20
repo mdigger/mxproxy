@@ -23,6 +23,8 @@ type Proxy struct {
 	apns    *APNS             // транспорт для отправки уведомлений Apple Push
 	fcm     map[string]string // ключи для отправку уведомлений Firebase Cloud Message
 	store   *Store            // хранилище токенов устройств
+	stopped bool              // флаг остановки сервиса
+	mu      sync.RWMutex
 }
 
 // LoadConfig загружает конфигурационный файл и на основании него инициализирует
@@ -115,26 +117,33 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 
 		// восстановление соединения в случае разрыва
 		go func(mxs *MXServer) {
-		monitoring:
-			// запускаем мониторы пользователей
-			if jids, err := store.Users(mxs.ID()); err != nil {
-				log.WithError(err).Warning("get mx user error")
-			} else if err = mxs.MonitorStart(jids...); err != nil {
-				log.WithError(err).Warning("starting users monitors error")
+			for {
+				// запускаем мониторы пользователей
+				if jids, err := store.Users(mxs.ID()); err != nil {
+					log.WithError(err).Warning("get mx user error")
+				} else if err = mxs.MonitorStart(jids...); err != nil {
+					log.WithError(err).Warning("starting users monitors error")
+				}
+				go mxs.CallMonitor(proxy.SendPush) // запускаем мониторинг звонков
+				<-mxs.conn.Done()                  // ждем окончания соединения
+			reconnect:
+				// проверяем флаг, что сервис не остановлен планово
+				proxy.mu.RLock()
+				var stopped = proxy.stopped
+				proxy.mu.RUnlock()
+				if stopped {
+					return
+				}
+				mxs.log.Infof("reconnect after %s...", ReconnectDelay)
+				time.Sleep(ReconnectDelay) // задержка между подключениями
+				newmxs, err := ConnectMXServer(mxs.host, mxs.login, mxs.password)
+				if err != nil {
+					mxs.log.WithError(err).Warning("mx server connection error")
+					goto reconnect
+				}
+				mxlist.Add(newmxs) // сохраняем в списке
+				mxs = newmxs       // подменяем старое соединение
 			}
-			go mxs.CallMonitor(proxy.SendPush) // запускаем мониторинг звонков
-			<-mxs.conn.Done()                  // ждем окончания соединения
-		reconnect:
-			mxs.log.Infof("reconnect after %s...", ReconnectDelay)
-			time.Sleep(ReconnectDelay)
-			newmxs, err := ConnectMXServer(mxs.host, mxs.login, mxs.password)
-			if err != nil {
-				mxs.log.WithError(err).Warning("mx server connection error")
-				goto reconnect
-			}
-			mxlist.Add(newmxs) // сохраняем в списке
-			mxs = newmxs       // подменяем старое соединение
-			goto monitoring
 		}(mxs)
 	}
 
@@ -143,6 +152,9 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 
 // Close закрывает все серверные соединения MX и хранилище токенов устройств.
 func (p *Proxy) Close() {
+	p.mu.Lock()
+	p.stopped = true
+	p.mu.Unlock()
 	p.servers.CloseAll()
 	p.store.Close()
 }
