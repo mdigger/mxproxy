@@ -86,6 +86,7 @@ func main() {
 	mux.Handle("GET", "/mx/:mx/contacts", proxy.GetAddressBook)
 	mux.Handle("GET", "/mx/:mx/contacts/:id", proxy.GetContact)
 	mux.Handle("POST", "/mx/:mx/calls", proxy.PostMakeCall)
+	mux.Handle("POST", "/mx/:mx/calls/:id", proxy.PostSIPAnswer)
 	mux.Handle("GET", "/mx/:mx/calls/log", proxy.GetCallLog)
 	mux.Handle("GET", "/mx/:mx/voicemails", proxy.GetVoiceMailList)
 	mux.Handle("GET", "/mx/:mx/voicemails/:id", proxy.GetVoiceMailFile)

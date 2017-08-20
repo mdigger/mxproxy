@@ -91,6 +91,38 @@ func (p *Proxy) PostMakeCall(c *rest.Context) error {
 	return c.Write(rest.JSON{"call": resp}) // отдаем ответ
 }
 
+// PostSIPAnswer принимает запрос на подтверждение звонка и отправляет
+// его на сервер MX.
+func (p *Proxy) PostSIPAnswer(c *rest.Context) error {
+	mxclient, err := p.getMXClient(c)
+	if err != nil {
+		return err
+	}
+	defer mxclient.Close()
+	// Params описывает параметры, передаваемые в запроса
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return rest.ErrNotFound
+	}
+	type Params struct {
+		DeviceID string        `json:"deviceId" form:"deviceId"`
+		SIPName  string        `json:"sipName" form:"sipName"`
+		Timeout  time.Duration `json:"timeout" form:"timeout"`
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(Params)
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	// отправляем команды на сервер
+	err = mxclient.SIPAnswer(callID, params.DeviceID,
+		params.SIPName, params.Timeout*time.Second)
+	if err == mx.ErrTimeout {
+		return c.Error(http.StatusRequestTimeout, err.Error())
+	}
+	return err
+}
+
 // GetVoiceMailList отдает лог с информацией о звонках пользователя.
 func (p *Proxy) GetVoiceMailList(c *rest.Context) error {
 	mxclient, err := p.getMXClient(c)

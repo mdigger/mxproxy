@@ -2,16 +2,51 @@ package main
 
 import (
 	"encoding/xml"
+	"time"
 
 	"github.com/mdigger/log"
 )
 
+// SIPAnswer подтверждает прием звонка по SIP.
+func (c *MXClient) SIPAnswer(callID int64, deviceID, sipName string,
+	timeout time.Duration) error {
+	if _, err := c.conn.MonitorStart(""); err != nil {
+		return err
+	}
+	// отправляем команду для ассоциации устройства по имени
+	type device struct {
+		Type string `xml:"type,attr"`
+		Name string `xml:",chardata"`
+	}
+	if _, err := c.conn.SendWithResponse(&struct {
+		XMLName xml.Name `xml:"AssignDevice"`
+		Device  device   `xml:"deviceID"`
+	}{
+		Device: device{
+			Type: "device",
+			Name: sipName,
+		},
+	}); err != nil {
+		return err
+	}
+	// теперь отправляем команду на подтверждение звонка
+	_, err := c.conn.SendWithResponseTimeout(&struct {
+		XMLName  xml.Name `xml:"AnswerCall"`
+		CallID   int64    `xml:"callToBeAnswered>callID"`
+		DeviceID string   `xml:"callToBeAnswered>deviceID"`
+	}{
+		CallID:   callID,
+		DeviceID: deviceID,
+	}, timeout)
+	return err
+}
+
 // MakeCall отсылает команду на сервер MX об установке соединения между двумя
 // указанными телефонами.
-func (s *MXClient) MakeCall(from, to string, ringDelay, vmDelay uint16) (
+func (c *MXClient) MakeCall(from, to string, ringDelay, vmDelay uint16) (
 	*MakeCallResponse, error) {
 	// отправляем команду на установку номера исходящего звонка
-	if err := s.conn.Send(&struct {
+	if err := c.conn.Send(&struct {
 		XMLName   xml.Name `xml:"iq"`
 		Type      string   `xml:"type,attr"`
 		ID        string   `xml:"id,attr"`
@@ -41,11 +76,11 @@ func (s *MXClient) MakeCall(from, to string, ringDelay, vmDelay uint16) (
 	}{
 		CallingDevice: callingDevice{
 			Type: "deviceID",
-			Ext:  s.conn.Ext,
+			Ext:  c.conn.Ext,
 		},
 		To: to,
 	}
-	resp, err := s.conn.SendWithResponse(cmd)
+	resp, err := c.conn.SendWithResponse(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +88,7 @@ func (s *MXClient) MakeCall(from, to string, ringDelay, vmDelay uint16) (
 	if err = resp.Decode(result); err != nil {
 		return nil, err
 	}
-	s.log.WithFields(log.Fields{
+	c.log.WithFields(log.Fields{
 		"from": from,
 		"to":   to,
 	}).Debug("make call")
