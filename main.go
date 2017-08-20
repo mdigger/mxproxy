@@ -81,7 +81,7 @@ func main() {
 		Logger: log.WithField("type", "http"),
 	}
 	if git != "" {
-		mux.Headers["X-Build"] = git
+		mux.Headers["Server"] += " (" + git + ")"
 	}
 	mux.Handle("GET", "/mx/:mx/contacts", proxy.GetAddressBook)
 	mux.Handle("GET", "/mx/:mx/contacts/:id", proxy.GetContact)
