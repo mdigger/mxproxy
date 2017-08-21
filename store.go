@@ -23,7 +23,7 @@ func OpenStore(filename string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.WithField("file", filename).Info("tokens db")
+	log.WithField("file", filename).Info("tokens db opened")
 	return &Store{db: db}, nil
 }
 

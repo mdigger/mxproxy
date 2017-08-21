@@ -57,7 +57,7 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 	if err = json5.Unmarshal(data, config); err != nil {
 		return nil, err
 	}
-	log.WithField("file", configName).Info("config")
+	log.WithField("file", configName).Info("config loaded")
 
 	// устанавливаем таймауты
 	if config.Timeouts.Connect.Duration > 0 {

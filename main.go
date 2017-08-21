@@ -146,7 +146,7 @@ func StartHTTPServer(mux http.Handler, hosts ...string) {
 		if server.Addr != hosts[0] {
 			slog = slog.WithField("host", strings.Join(hosts, ","))
 		}
-		slog.Info("http server")
+		slog.Info("starting http server")
 		var err error
 		if secure {
 			err = server.ListenAndServeTLS("", "")
