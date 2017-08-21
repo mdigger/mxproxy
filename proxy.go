@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"github.com/mdigger/log"
 	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
-	"github.com/yosuke-furukawa/json5/encoding/json5"
 )
 
 // ReconnectDelay задает время задержки между переподключением к серверу MX.
@@ -54,7 +54,7 @@ func LoadConfig(configName, tokensDBName string) (*Proxy, error) {
 		// ключами
 		FCM map[string]string `json:"fcm"`
 	})
-	if err = json5.Unmarshal(data, config); err != nil {
+	if err = json.Unmarshal(data, config); err != nil {
 		return nil, err
 	}
 	log.WithField("file", configName).Info("config loaded")
