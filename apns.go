@@ -84,9 +84,9 @@ func (apns *APNS) LoadCertificate(filename, password string) error {
 		}
 	}
 	log.WithFields(log.Fields{
-		"file":    filename,
-		"topic":   topicID,
-		"expires": x509Cert.NotAfter.Format("2006-01-02"),
+		"file":   filename,
+		"topic":  topicID,
+		"expire": x509Cert.NotAfter.Format("2006-01-02"),
 	}).Info("apns certificate")
 	return nil
 }
