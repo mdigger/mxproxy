@@ -324,24 +324,20 @@ Authorization: Basic ZG06Nzg1NjE=
 ### Регистрация токена устройства
 
 ```http
-POST /mx/<mx-id>/tokens/<type>/<app-id>
+PUT /mx/<mx-id>/tokens/<type>/<app-id>/<token>
 Authorization: Basic ZG06Nzg1NjE=
-
-{
-  "token": "aabb010203040506070809aabb"
-}
 ```
 
 `<type>` должен быть либо `apn`, либо `fcm` - в зависимости от типа токена. `<app-id>` задает идентификатор приложения для Android или идентификатор сертификата для Apple. Так же для устройств Apple может быть добавлен дополнительный параметр в адресе запроса `sandbox`, который указывает, что данный токен устройства может быть использован для отправки уведомлений через Apple Push Notification Sandbox:
 
 ```http
-POST /mx/<mx-id>/tokens/apn/com.xyzrd.vialer.voip?sandbox
+PUT /mx/<mx-id>/tokens/apn/com.xyzrd.vialer.voip/<token>?sandbox
 Authorization: Basic ZG06Nzg1NjE=
-
-{
-  "token": "aabb010203040506070809aabb"
-}
 ```
+
+Аналогичные команды, но с методом `DELETE` удаляют токен устройства.
+
+**ВНИМАНИЕ!** Токены устройств для Apple Push, добавленные с флагом `sandbox` и без него считаются **разными** токенами.
 
 ## События
 
