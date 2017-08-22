@@ -18,13 +18,14 @@ import (
 // информация о сервисе и версия
 var (
 	appName = "mxproxy" // название сервиса
-	version = "0.15"    // версия
+	version = "0.16"    // версия
 	date    = ""        // дата сборки
 	git     = ""        // версия git
 
 	host         = appName + ".connector73.net" // имя сервера
 	configName   = appName + ".json"            // имя конфигурационного файла
 	tokensDBName = appName + ".db"              // имя файла с хранилищем токенов
+	debug        = false                        // флаг вывода отладочной информации
 )
 
 func init() {
@@ -32,7 +33,6 @@ func init() {
 	flag.StringVar(&host, "host", host, "main server `name`")
 	flag.StringVar(&configName, "config", configName, "config `filename`")
 	flag.StringVar(&tokensDBName, "db", tokensDBName, "tokens DB `filename`")
-	var debug = false // флаг вывода отладочной информации
 	flag.BoolVar(&debug, "debug", debug, "debug output")
 	var cstaOutput bool // флаг вывода команд и ответов CSTA
 	flag.BoolVar(&cstaOutput, "csta", cstaOutput, "CSTA output")
@@ -92,7 +92,13 @@ func main() {
 	mux.Handle("GET", "/mx/:mx/voicemails/:id", proxy.GetVoiceMailFile)
 	mux.Handle("DELETE", "/mx/:mx/voicemails/:id", proxy.DeleteVoiceMail)
 	mux.Handle("PATCH", "/mx/:mx/voicemails/:id", proxy.PatchVoiceMail)
-	mux.Handle("POST", "/mx/:mx/tokens/:type/:topic", proxy.AddToken)
+	mux.Handle("PUT", "/mx/:mx/tokens/:type/:topic/:token", proxy.Token)
+	mux.Handle("DELETE", "/mx/:mx/tokens/:type/:topic/:token", proxy.Token)
+
+	if debug {
+		// отдает хранилище токенов в JSON формате
+		mux.Handle("GET", "/debug/store", proxy.Store)
+	}
 
 	StartHTTPServer(mux, host)            // запускаем HTTP сервер
 	monitorSignals(os.Interrupt, os.Kill) // ожидаем сигнала остановки

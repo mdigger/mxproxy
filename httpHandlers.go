@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
 )
@@ -221,26 +223,27 @@ func (p *Proxy) PatchVoiceMail(c *rest.Context) error {
 	return nil
 }
 
-// AddToken добавляет токен в хранилище.
-func (p *Proxy) AddToken(c *rest.Context) error {
+// Token добавляет или удаляет токен из хранилища, в зависимости от метода
+// запроса.
+func (p *Proxy) Token(c *rest.Context) error {
 	mxs, err := p.getMXServer(c)
 	if err != nil {
 		return err
 	}
 	var (
-		topicID   = c.Param("topic")       // идентификатор приложения
-		tokenType = c.Param("type")        // тип токаена: apn, fcm
-		jid       = c.Data("jid").(mx.JID) // идентификатор пользователя
+		tokenType = c.Param("type")  // тип токаена: apn, fcm
+		topicID   = c.Param("topic") // идентификатор приложения
+		token     = c.Param("token") // токен устройства
 	)
 	// проверям, что мы поддерживаем данные токены устройства
 	switch tokenType {
 	case "apn": // Apple Push Notification
 		// проверяем, что взведен флаг sandbox
-		if c.Query("sandbox") != "" {
+		if len(c.Request.URL.Query()["sandbox"]) > 0 {
 			topicID += "~"
 		}
 		if !p.apns.Support(topicID) {
-			return c.Error(http.StatusNotFound, "unsupported APNS topic ID")
+			return c.Error(http.StatusNotFound, "unsupported APNS topic ID or sandbox flag")
 		}
 	case "fcm": // Firebase Cloud Messages
 		if _, ok := p.fcm[topicID]; !ok {
@@ -250,23 +253,48 @@ func (p *Proxy) AddToken(c *rest.Context) error {
 		return c.Error(http.StatusNotFound,
 			fmt.Sprintf("unsupported push type %q", tokenType))
 	}
-	// разбираем данные запроса
-	var data = new(struct {
-		Token string `json:"token" form:"token"`
-	})
-	if err := c.Bind(data); err != nil {
-		return err
-	}
-	if len(data.Token) < 20 {
+	if len(token) < 20 {
 		return c.Error(http.StatusBadRequest, "bad push token")
 	}
-	// объединяем topicID c типом, а пользователся с идентификатором MX
+	// объединяем topicID c типом
 	topicID = fmt.Sprintf("%s:%s", tokenType, topicID)
-	var userID = fmt.Sprintf("%s:%s", mxs.ID(), jid)
-	// поднимаем монитор для пользователя
-	if err = mxs.MonitorStart(jid); err != nil {
+	switch c.Request.Method {
+	case "POST", "PUT":
+		var jid = c.Data("jid").(mx.JID) // идентификатор пользователя
+		if err = mxs.MonitorStart(jid); err != nil {
+			return err
+		}
+		var userID = fmt.Sprintf("%s:%s", mxs.ID(), jid)
+		return p.store.TokenAdd(userID, topicID, token)
+	case "DELETE":
+		return p.store.TokenRemove(topicID, token)
+	default:
+		return rest.ErrMethodNotAllowed
+	}
+}
+
+// Store отдает хранилище токенов в виде JSON.
+func (p *Proxy) Store(c *rest.Context) error {
+	var backup = make(rest.JSON)
+	if err := p.store.db.View(func(tx *bolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bolt.Bucket) error {
+			var section = make(rest.JSON, b.Stats().KeyN)
+			if err := b.ForEach(func(k, v []byte) error {
+				if bytes.Equal(bucketUsersName, name) {
+					section[string(k)] = ParseTokens(v)
+				} else {
+					section[string(k)] = string(v)
+				}
+				return nil
+			}); err != nil {
+				return err
+			}
+			backup[string(name)] = section
+			return nil
+		})
+
+	}); err != nil {
 		return err
 	}
-	// сохраняем токен в хранилище
-	return p.store.TokenAdd(userID, topicID, data.Token)
+	return c.Write(backup)
 }

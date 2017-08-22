@@ -123,6 +123,7 @@ func (s *Store) TokenRemove(topicID, token string) error {
 		if len(tokens) == 0 {
 			ctxlog.Debug("remove empty user")
 			err = bUsers.Delete(userID)
+			// TODO: остановить монитор пользователя
 		} else {
 			err = bUsers.Put(userID, tokens.Bytes())
 		}
