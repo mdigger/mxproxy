@@ -73,14 +73,14 @@ func (s *MXServer) addressbook() error {
 		case "AbUpdateUserEvent", "AbAddUserEvent":
 			// добавление/изменения пользователя в адресной книге
 			var update = new(struct {
-				*mx.Contact `xml:"abentry"`
+				Contact *mx.Contact `xml:"abentry"`
 			})
 			if err := resp.Decode(update); err != nil {
 				s.log.WithError(err).Errorf("mx event %s parse error", resp.Name)
 				break
 			}
 			s.contacts.Store(update.Contact)
-			s.log.WithField("jid", update.JID).Debug("contact updated")
+			s.log.WithField("jid", update.Contact.JID).Debug("contact updated")
 		case "AbDeleteUserEvent":
 			// удаление пользователя из адресной книги
 			var update = new(struct {
