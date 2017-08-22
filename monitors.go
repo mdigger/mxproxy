@@ -18,13 +18,17 @@ func (s *MXServer) MonitorStart(jids ...mx.JID) error {
 		if contact == nil {
 			continue // неизвестный нам уникальный идентификатор пользователя
 		}
+		// проверяем, что монитор еще не запущен
+		if s.monitors.Get(jid) != 0 {
+			continue // монитор уже запущен
+		}
 		// запускаем пользовательский монитор
 		id, err := s.conn.MonitorStart(contact.Ext)
 		if err != nil {
 			return err
 		}
 		// сохраняем идентификатор пользователя монитора
-		s.monitors.Store(id, jid)
+		s.monitors.Store(jid, id)
 		s.log.WithFields(log.Fields{
 			"jid":     jid,
 			"ext":     contact.Ext,
@@ -44,7 +48,7 @@ func (s *MXServer) MonitorStop(jids ...mx.JID) (err error) {
 		if id == 0 {
 			continue
 		}
-		s.monitors.Delete(id)
+		s.monitors.Delete(jid)
 		if err = s.conn.MonitorStop(id); err != nil {
 			return err
 		}
@@ -109,35 +113,38 @@ type Delivery struct {
 // Monitors хранит ассоциацию номера запущенного монитора пользователя и
 // его уникального идентификатора.
 type Monitors struct {
-	monitors sync.Map
+	monitors sync.Map // jid -> monitor-id
 }
 
-// Store регистрирует ассоциацию номера монитора и идентификатора пользователя.
-func (m *Monitors) Store(id int64, jid mx.JID) {
-	m.monitors.Store(id, jid)
+// Store регистрирует ассоциацию идентификатора пользователя и номера монитора.
+func (m *Monitors) Store(jid mx.JID, id int64) {
+	m.monitors.Store(jid, id)
 }
 
-// Delete удаляет запись по номеру монитора.
-func (m *Monitors) Delete(id int64) {
-	m.monitors.Delete(id)
+// Delete удаляет запись о мониторе по идентификатору пользователя.
+func (m *Monitors) Delete(jid mx.JID) {
+	m.monitors.Delete(jid)
 }
 
 // Get возвращает номер монитора по идентификатору пользователя. Если с
 // пользователем не связан ни один монитор, то возвращается 0.
 func (m *Monitors) Get(jid mx.JID) int64 {
-	var monitor int64
-	m.monitors.Range(func(id, jid2 interface{}) bool {
-		monitor = id.(int64)
-		return jid == jid2.(mx.JID)
-	})
-	return monitor
+	if id, ok := m.monitors.Load(jid); ok {
+		return id.(int64)
+	}
+	return 0
 }
 
 // GetJID возвращает уникальный идентификатор пользователя по номеру монитора.
 // Если пользователь не привязан к монитору, то возвращается 0.
 func (m *Monitors) GetJID(id int64) mx.JID {
-	if jid, ok := m.monitors.Load(id); ok {
-		return jid.(mx.JID)
-	}
-	return 0
+	var jid mx.JID
+	m.monitors.Range(func(jid2, id2 interface{}) bool {
+		if id != id2.(int64) {
+			return true
+		}
+		jid = jid2.(mx.JID)
+		return false
+	})
+	return jid
 }
