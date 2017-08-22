@@ -122,17 +122,17 @@ func (p *Proxy) sendPushAPN(userID, topicID string, tokens map[string]time.Time,
 			ctxlog.WithError(err).Error("apple push response decode error")
 			continue
 		}
-		ctxlog = ctxlog.WithField("error", apnsError.Reason)
 		// в случае ошибки связанной с токеном устройства, удаляем его
+		var ctxerr = ctxlog.WithField("error", apnsError.Reason)
 		switch apnsError.Reason {
 		case "MissingDeviceToken",
 			"BadDeviceToken",
 			"DeviceTokenNotForTopic",
 			"Unregistered":
 			p.store.TokenRemove(topicID, token)
-			ctxlog.Debug("remove apple bad token")
+			ctxerr.Debug("remove apple bad token")
 		default:
-			ctxlog.Error("apple push error")
+			ctxerr.Error("apple push error")
 		}
 	}
 	log.WithFields(log.Fields{
