@@ -49,7 +49,7 @@ func (s *MXServer) MonitorStop(jids ...mx.JID) (err error) {
 			continue
 		}
 		s.monitors.Delete(jid)
-		if err = s.conn.MonitorStop(id); err != nil {
+		if err = s.conn.MonitorStopID(id); err != nil {
 			return err
 		}
 		s.log.WithFields(log.Fields{

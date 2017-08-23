@@ -38,7 +38,7 @@ func ConnectMXClient(host, login, password string) (*MXClient, error) {
 // Close закрывает соединение с сервером MX.
 func (c *MXClient) Close() error {
 	// останавливаем пользовательский монитор, если он был запущен
-	c.conn.MonitorStop(0)
+	c.conn.MonitorStopID(0)
 	c.log.Debug("disconnected from mx")
 	return c.conn.Close()
 }
