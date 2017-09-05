@@ -1,35 +1,79 @@
-# MXProxy
+# MX Proxy 2
 
-Данный сервис позволяет проксировать некоторые запросы к серверам Zultys MX и выполнять их в виде HTTP-запросов.
+## Авторизация пользователя и приложения
 
-## API
-
-В пути обращения к сервису требуется указывать уникальный идентификатор сервера MX: `/mx/<mx-id>/...`
-
-Все запросы к сервису MXProxy **требуют авторизации** пользователя Zultys MX. Данные для авторизации передаются в заголовке HTTP Authorization (**Basic**).
-
-Все ответы с кодом `2xx` должны рассматриваться как успешные, а `4xx` и `5xx` как неуспешные.
-
-### Получение адресной книги
+Для авторизации используется протокол [Resource Owner Password Credentials Grant](https://tools.ietf.org/html/rfc6749#section-4.3).
 
 ```http
-GET /mx/<mx-id>/contacts
-Authorization: Basic ZG06Nzg1NjE=
+POST /auth HTTP/1.1
+Authorization: Basic Y2xpZW50NzY2NDpNbXgwT2xXRURJRGhQR2dHcExRRnhCd3BDU1BwOUlJWQ==
+Content-Type: application/x-www-form-urlencoded; charset=utf-8
+
+username=dmitrys%40xyzrd.com&password=78561&grant_type=password
 ```
 
-Возвращает серверную адресную книгу с пользователями MX:
+Логин пользователя указывается в `username`, пароль - в `password`. `grant_type` должен содержать строку `password`. В заголовке запроса передается HTTP Basic авторизация приложения (`client_id`:`secret`). Последние должны быть зарегистрированы в конфигурации сервера.
 
-```json
+В ответ возвращается токен, который потом используется для обращения к другим функциям API:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Server: MXProxy/2.0
+
 {
-    "addressbook": [
+    "token_type": "Bearer",
+    "access_token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Im92dGU0ZSJ9.eyJleHAiOjE1MDQ2MzI1MzgsImlhdCI6MTUwNDYyODkyOCwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3Q6ODAwMCIsImp0aSI6Ik5acGo2Q1MwIiwic3ViIjoiZG1pdHJ5c0B4eXpyZC5jb20ifQ.zXd9STR6CVuplm8jHoBG2mkB2TUaAdr2QJj_JKItqxbfSVivM5WalWX7Z6SrX_ANtqQSj3bGmW68GGg7_zal0Q",
+    "expires_in": 3600
+}
+```
+
+Токен действителен ограниченное количество времени, которое указывается в `expires_in` в секундах.
+
+## Удаление пользователя
+
+```http
+GET /auth/logout HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Останавливает соединение с сервером MX для данного пользователя и удаляет его из списка активных соединений.
+
+## Список контактов
+
+```http
+GET /contacts HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Возвращает список контактов сервера MX. Контакты упорядочены по внутреннему номеру (`ext`):
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+    "contacts": [
         {
-            "jid": 43884852633771555,
+            "jid": "43884852633771555",
             "firstName": "SMS",
             "lastName": "Gateway C73",
             "extension": "3010"
         },
         {
-            "jid": 43884851428118509,
+            "jid": "43884851338921185",
+            "firstName": "mxflex",
+            "lastName": "mxflex",
+            "extension": "3042"
+        },
+        {
+            "jid": "43884852654574210",
+            "firstName": "Ilia",
+            "lastName": "Test",
+            "extension": "3043"
+        },
+        {
+            "jid": "43884851428118509",
             "firstName": "Peter",
             "lastName": "Hyde",
             "extension": "3044",
@@ -39,7 +83,7 @@ Authorization: Basic ZG06Nzg1NjE=
             "did": "15125550136"
         },
         {
-            "jid": 43884850646482261,
+            "jid": "43884850646482261",
             "firstName": "Mike",
             "lastName": "Flynn",
             "extension": "3055",
@@ -48,7 +92,51 @@ Authorization: Basic ZG06Nzg1NjE=
             "email": "mikef@xyzrd.com"
         },
         {
-            "jid": 43884851147406145,
+            "jid": "43884850557879186",
+            "firstName": "Test",
+            "lastName": "One",
+            "extension": "3080"
+        },
+        {
+            "jid": "43884851776746473",
+            "firstName": "Test",
+            "lastName": "Two",
+            "extension": "3081"
+        },
+        {
+            "jid": "43884852542754454",
+            "firstName": "Test",
+            "lastName": "Three",
+            "extension": "3082"
+        },
+        {
+            "jid": "43884852535898307",
+            "firstName": "dstest1",
+            "lastName": "dstest1",
+            "extension": "3091"
+        },
+        {
+            "jid": "43884850939404214",
+            "firstName": "dstest2",
+            "lastName": "dstest2",
+            "extension": "3092",
+            "cellPhone": "16693507465",
+            "did": "16693507465"
+        },
+        {
+            "jid": "43884850647480796",
+            "firstName": "Test",
+            "lastName": "Admin",
+            "extension": "3093"
+        },
+        {
+            "jid": "43884852355777349",
+            "firstName": "Zultys",
+            "lastName": "Test",
+            "extension": "3094"
+        },
+        {
+            "jid": "43884851147406145",
             "firstName": "Dmitry",
             "lastName": "Sedykh",
             "extension": "3095",
@@ -56,13 +144,19 @@ Authorization: Basic ZG06Nzg1NjE=
             "email": "dmitrys@xyzrd.com"
         },
         {
-            "jid": 43884851851343044,
+            "jid": "43884851851343044",
             "firstName": "Sergey",
             "lastName": "Kananykhin",
             "extension": "3096"
         },
         {
-            "jid": 43884851324615074,
+            "jid": "43884851514905017",
+            "firstName": "Test",
+            "lastName": "Zultys",
+            "extension": "3097"
+        },
+        {
+            "jid": "43884851324615074",
             "firstName": "John",
             "lastName": "Smith",
             "extension": "3098",
@@ -70,7 +164,7 @@ Authorization: Basic ZG06Nzg1NjE=
             "did": "12035160992"
         },
         {
-            "jid": 43884852031096113,
+            "jid": "43884852031096113",
             "firstName": "Maxim",
             "lastName": "Donchenko",
             "extension": "3099",
@@ -82,173 +176,482 @@ Authorization: Basic ZG06Nzg1NjE=
 
 У контакта поддерживаются следующие поля: `jid`, `firstName`, `lastName`, `extension`, `homePhone`, `cellPhone`, `email`, `homeSystem`, `did`, `exchangeId`. Поля с пустыми значениями могут быть опущены.
 
-### Поиск контакта
+## Список звонков пользователя
 
 ```http
-GET /mx/<mx-id>/contacts/<contact-id>
-Authorization: Basic ZG06Nzg1NjE=
+GET /calls?timestamp=1503223469 HTTP/1.1
+Authorization: Bearer <token>
 ```
 
-Возвращает информацию о контакте. В качестве идентификатора контакта можно использовать его уникальный идентификатор (`jid`), внутренний номер (`extension`) или `email` адрес. Если ничего не найдено, то возвращается ошибка `404`.
+Возвращает лог пользовательских звонков, упорядоченный по идентификатору (`record_id`). Необязательный параметра в URL `timestamp` позволяет задать фильтрацию списка: выводиться будут только те звонки, которые были совершены после указанной даты. `timestamp` может быть указан как в числовом виде (`1503223469`), так и виде строки (`2017-09-03T00:00:00Z`).
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+    "callLog": [
+        {
+            "missed": true,
+            "direction": "incoming",
+            "record_id": 973,
+            "gcid": "63022-00-0000D-3B9",
+            "connectTimestamp": 1503223469,
+            "disconnectTimestamp": 1503223472,
+            "callingPartyNo": "3044",
+            "originalCalledPartyNo": "3095",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 9
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 975,
+            "gcid": "63022-00-0000D-3BB",
+            "disconnectTimestamp": 1503258153,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 976,
+            "gcid": "63022-00-0000D-3BC",
+            "disconnectTimestamp": 1503264934,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1047,
+            "gcid": "63022-00-0000D-3F8",
+            "disconnectTimestamp": 1503472515,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1138,
+            "gcid": "63022-00-0000D-444",
+            "disconnectTimestamp": 1503961073,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1139,
+            "gcid": "63022-00-0000D-445",
+            "disconnectTimestamp": 1503961572,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1140,
+            "gcid": "63022-00-0000D-446",
+            "disconnectTimestamp": 1503961749,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1141,
+            "gcid": "63022-00-0000D-447",
+            "disconnectTimestamp": 1503963185,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1142,
+            "gcid": "63022-00-0000D-448",
+            "disconnectTimestamp": 1503963904,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1143,
+            "gcid": "63022-00-0000D-449",
+            "disconnectTimestamp": 1503964356,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1158,
+            "gcid": "63022-00-0000D-458",
+            "disconnectTimestamp": 1504115834,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1159,
+            "gcid": "63022-00-0000D-459",
+            "disconnectTimestamp": 1504122163,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1169,
+            "gcid": "63022-00-0000D-463",
+            "disconnectTimestamp": 1504189334,
+            "callingPartyNo": "3095",
+            "originalCalledPartyNo": "3044",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1186,
+            "gcid": "63022-00-0000D-474",
+            "disconnectTimestamp": 1504263779,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "+79031744445",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1187,
+            "gcid": "63022-00-0000D-475",
+            "disconnectTimestamp": 1504263810,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "+74992549993",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1188,
+            "gcid": "63022-00-0000D-476",
+            "disconnectTimestamp": 1504263972,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "+74992549993",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "missed": true,
+            "direction": "incoming",
+            "record_id": 1190,
+            "gcid": "63022-00-0000D-478",
+            "connectTimestamp": 1504522727,
+            "disconnectTimestamp": 1504522740,
+            "callingPartyNo": "3044",
+            "originalCalledPartyNo": "3095",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 9
+        },
+        {
+            "direction": "incoming",
+            "record_id": 1192,
+            "gcid": "63022-00-0000D-478",
+            "connectTimestamp": 1504522742,
+            "disconnectTimestamp": 1504522747,
+            "callingPartyNo": "3044",
+            "originalCalledPartyNo": "voicemail.3095",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 3
+        },
+        {
+            "missed": true,
+            "direction": "incoming",
+            "record_id": 1193,
+            "gcid": "63022-00-0000D-47A",
+            "connectTimestamp": 1504523032,
+            "disconnectTimestamp": 1504523045,
+            "callingPartyNo": "3044",
+            "originalCalledPartyNo": "3095",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 9
+        },
+        {
+            "direction": "incoming",
+            "record_id": 1195,
+            "gcid": "63022-00-0000D-47A",
+            "connectTimestamp": 1504523045,
+            "disconnectTimestamp": 1504523053,
+            "callingPartyNo": "3044",
+            "originalCalledPartyNo": "voicemail.3095",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 3
+        },
+        {
+            "missed": true,
+            "direction": "incoming",
+            "record_id": 1207,
+            "gcid": "63022-00-0000D-486",
+            "connectTimestamp": 1504524355,
+            "disconnectTimestamp": 1504524367,
+            "callingPartyNo": "3044",
+            "originalCalledPartyNo": "3095",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 9
+        },
+        {
+            "direction": "incoming",
+            "record_id": 1209,
+            "gcid": "63022-00-0000D-486",
+            "connectTimestamp": 1504524370,
+            "disconnectTimestamp": 1504524373,
+            "callingPartyNo": "3044",
+            "originalCalledPartyNo": "voicemail.3095",
+            "firstName": "Peter",
+            "lastName": "Hyde",
+            "extension": "3044",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 3
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1286,
+            "gcid": "63022-00-0000D-4D4",
+            "disconnectTimestamp": 1504626178,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1287,
+            "gcid": "63022-00-0000D-4D5",
+            "disconnectTimestamp": 1504626217,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1289,
+            "gcid": "63022-00-0000D-4D7",
+            "disconnectTimestamp": 1504626312,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1295,
+            "gcid": "63022-00-0000D-4DD",
+            "disconnectTimestamp": 1504626448,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        },
+        {
+            "direction": "outgoing",
+            "record_id": 1301,
+            "gcid": "63022-00-0000D-4E3",
+            "disconnectTimestamp": 1504626848,
+            "callingPartyNo": "79031744445",
+            "originalCalledPartyNo": "79031744437",
+            "callType": 1,
+            "legType": 1,
+            "selfLegType": 1
+        }
+    ]
+}
+```
+
+Полный список возможных полей: `missed` (_bool_), `direction`, `record_id` (_number_), `gcid`, `connectTimestamp` (_timestamp_), `disconnectTimestamp` (_timestamp_), `callingPartyNo`, `originalCalledPartyNo`, `firstName`, `lastName`, `extension`, `serviceName`, `serviceExtension`, `callType` (_number_), `legType` (_number_), `selfLegType` (_number_), `monitorType` (_number_). Пустые поля могут быть опущены.
+
+К сожалению, сервер MX не предоставляет возможности определить, что список отдан полностью, поэтому это делается чисто эврестическим способом: обычно ответ разбивается сервером на группы по 21 звонку, поэтому проверяется, что последняя группа содержит меньше 21 звонка. Если вдруг случается, что в последней группе ровно 21 звонок, то ответ придется ждать до окончания таймаута ожидания (2 минуты по умолчанию).
+
+## Режим звонков
+
+```http
+PATCH /calls HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{"remote":true,"device":"79031744445"}
+```
+
+Устанавливает режим звонков (`remote` или `local`):
 
 ```json
 {
-    "contact": {
-        "jid": 43884852633771555,
-        "firstName": "SMS",
-        "lastName": "Gateway C73",
-        "extension": "3010"
+  "remote": true,
+  "deviceName": "phone",
+  "ringDelay": 1,
+  "vmDelay": 30
+}
+```
+
+Опциональные параметры:
+
+- `ringDelay` - если не указано, то `1`
+- `vmDelay` - если не указано, то `30`
+
+В ответ возвращается полный список параметров, использованных при установке режима:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+    "callMode": {
+        "remote": true,
+        "device": "79031744445",
+        "ringDelay": 1,
+        "vmDelay": 30
     }
 }
 ```
 
-### Вызов обратного звонка
+## Серверный звонок
 
 ```http
-POST /mx/<mx-id>/calls
-Authorization: Basic ZG06Nzg1NjE=
+POST /calls HTTP/1.1
+Authorization: Bearer <token>
 Content-Type: application/json; charset=utf-8
 
-{
-    "from":"79031744445",
-    "to":"79031744437",
-    "ringDelay":1,
-    "vmDelay":30
-}
+{"from":"79031744445","to":"79031744437"}
 ```
 
-Обязательными параметрами являются только `from` и `to`. `ringDelay` имеет значение по умолчанию `1`, а `vmDelay` - `30`.
-
-В ответ возвращается информация о звонке:
+Осуществляет серверный звонок с/на указанный в запросе номер:
 
 ```json
 {
-    "call": {
-        "callId": 186,
-        "deviceId": "3095",
+  "from": "79031744445",
+  "to": "79031744437",
+  "device": "dmitrys"
+}
+```
+
+Опциональные параметры:
+
+- если `device` указан, то происходит вызов назначения устройства.
+
+В ответ возвращается информация о звонке:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+    "makeCall": {
+        "callId": 123,
+        "deviceId": "79031744445",
         "calledDevice": "79031744437"
     }
 }
 ```
 
-### Ответ на звонок по SIP
+## Перехват звонка для SIP устройства
 
 ```http
-POST /mx/<mx-id>/calls/<call-id>
-Authorization: Basic ZG06Nzg1NjE=
+PUT /calls/123 HTTP/1.1
+Authorization: Bearer <token>
 Content-Type: application/json; charset=utf-8
 
+{"device":"sipPhone","timeout":30}
+```
+
+Позволяет перехватить ответ на звонок на SIP устройство:
+
+```json
 {
-  "deviceId": "1099",
-  "sipName": "maximd",
+  "device": "sipPhone",
   "timeout": 30
 }
 ```
 
-Идентификатор звонка (`callId`) указывается в пути запроса. В теле передается идентификатор устройства (`deviceId`), имя устройства для SIP (`sipName`) и время ожидания ответа в секундах (`timeout`).
+Опициональные параметры:
 
-В ответ возвращается код `204` при успешном звонке, `400` при неудаче назначения умени устройства или `408` при превышении времени ожидания ответа.
+- `timeout` по умолчанию равен `30`.
 
-### Лог звонков пользователя
+В ответ возвращается полный список параметров или ошибка, если не удалось перехватить звонок.
 
-```http
-GET /mx/<mx-id>/calls/log?timestam=2017-08-20T00:00:00Z
-Authorization: Basic ZG06Nzg1NjE=
-```
-
-Параметр `timestam` является не обязательным, но может ограничивать вывод в лог только тех звонков, которые были совершены после указанных даты и времени. Можно использовать как текстовое представление времени (`2017-08-20T00:00:00Z`), так и числовое (`1502625652`).
-
-В ответ возвращается список звонков:
-
-```json
-{
-  "calllog": [
-    {
-        "direction": "outgoing",
-        "record_id": 961,
-        "gcid": "63022-00-0000D-3AD",
-        "disconnectTimestamp": 1503203445,
-        "callingPartyNo": "79031744445",
-        "originalCalledPartyNo": "79031744437",
-        "callType": 1,
-        "legType": 1,
-        "selfLegType": 1
-    },
-    {
-        "direction": "outgoing",
-        "record_id": 962,
-        "gcid": "63022-00-0000D-3AE",
-        "disconnectTimestamp": 1503204267,
-        "callingPartyNo": "79031744445",
-        "originalCalledPartyNo": "79031744437",
-        "callType": 1,
-        "legType": 1,
-        "selfLegType": 1
-    },
-    {
-        "missed": true,
-        "direction": "incoming",
-        "record_id": 964,
-        "gcid": "63022-00-0000D-3B0",
-        "connectTimestamp": 1503204542,
-        "disconnectTimestamp": 1503204547,
-        "callingPartyNo": "3044",
-        "originalCalledPartyNo": "3095",
-        "firstName": "Peter",
-        "lastName": "Hyde",
-        "extension": "3044",
-        "callType": 1,
-        "legType": 1,
-        "selfLegType": 9
-    },
-    {
-        "missed": true,
-        "direction": "incoming",
-        "record_id": 967,
-        "gcid": "63022-00-0000D-3B3",
-        "connectTimestamp": 1503204601,
-        "disconnectTimestamp": 1503204603,
-        "callingPartyNo": "3044",
-        "originalCalledPartyNo": "3095",
-        "firstName": "Peter",
-        "lastName": "Hyde",
-        "extension": "3044",
-        "callType": 1,
-        "legType": 1,
-        "selfLegType": 9
-    }
-  ]
-}
-```
-
-Полный список возможных полей: `missed` _(bool)_, `direction`, `record_id` _(number)_, `gcid`, `connectTimestamp` _(timestamp)_, `disconnectTimestamp`_(timestamp)_, `callingPartyNo`, `originalCalledPartyNo`, `firstName`, `lastName`, `extension`, `serviceName`, `serviceExtension`, `callType` _(number)_, `legType` _(number)_, `selfLegType` _(number)_, `monitorType` _(number)_. Пустые поля могут быть опущены.
-
-В случае отдачи пустого списка может быть небольшая задержка с ответом до 2-5 секунд.
-
-### Список голосовой почты
+## Список голосовых сообщений пользователя (голосовая почта)
 
 ```http
-GET /mx/<mx-id>/voicemails
-Authorization: Basic ZG06Nzg1NjE=
+GET /voicemails HTTP/1.1
+Authorization: Bearer <token>
 ```
 
-Возвращает список голосовой почты пользователя:
+Возвращает список голосовых сообщений пользователя, упорядоченных по идентификатору:
 
-```json
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
 {
-    "voicemails": [
-        {
-            "from": "3044",
-            "fromName": "Peter Hyde",
-            "callerName": "Peter Hyde",
-            "to": "3095",
-            "ownerType": "user",
-            "id": "68",
-            "received": 1501545174,
-            "duration": 2,
-            "readed": true,
-            "note": "TsHroN7KrMH78wQ7s48iHGdbmidNGFNd"
-        },
+    "voiceMails": [
         {
             "from": "3095",
             "fromName": "Dmitry Sedykh",
@@ -258,7 +661,7 @@ Authorization: Basic ZG06Nzg1NjE=
             "received": 1502213652,
             "duration": 29,
             "readed": true,
-            "note": "text"
+            "note": "text note"
         },
         {
             "from": "3044",
@@ -274,122 +677,122 @@ Authorization: Basic ZG06Nzg1NjE=
 }
 ```
 
-Поддерживаемые поля: `from`, `fromName`, `callerName`, `to`, `ownerType`, `id`, `received` _(timestamp)_, `duration` _(number)_, `readed` _(bool)_, `note`. Пустые поля могут быть опущены.
+Поддерживаемые поля: `from`, `fromName`, `callerName`, `to`, `ownerType`, `id`, `received` (_timestamp_), `duration` (_number_), `readed` (_bool_), `note`. Пустые поля могут быть опущены.
 
-### Файл с голосовым сообщением
+## Файл с голосовым сообщением
 
 ```http
-GET /mx/<mx-id>/voicemails/<id>
-Authorization: Basic ZG06Nzg1NjE=
+GET /voicemails/82 HTTP/1.1
+Authorization: Bearer <token>
 ```
 
-В ответ возвращается содержимое файла. В заголовке ответа передается его тип и имя файла:
+Идентификатор голосового сообщения задается в URL запроса. В ответ возвращается содержимое файла с голосовым сообщением:
 
 ```http
 HTTP/1.1 200 OK
-Content-Disposition: attachment; filename="u00043884851147406145/m0016.wav"
+Content-Disposition: attachment; filename="u00043884851147406145/m0020.wav"
 Content-Type: audio/wave
 
-RIFF\WAVEfmt
-...
+<data>
 ```
 
-Если голосовой файл с таким идентификатором не найден или он принадлежит другому пользователю, то возвращается ошибка `404`.
-
-### Удаление голосовой почты
+## Удаление голосового сообщения
 
 ```http
-DELETE /mx/<mx-id>/voicemails/<id>
-Authorization: Basic ZG06Nzg1NjE=
+DELETE /voicemails/82 HTTP/1.1
+Authorization: Bearer <token>
 ```
 
-В случае успешного удаления файла возвращается код `204`. Если голосовой файл с таким идентификатором не найден или он принадлежит другому пользователю, то возвращается ошибка `404`.
+Идентификатор голосового сообщения задается в URL запроса.
 
-### Добавление заметки и установка флага прочитанности
+## Заметки и статус голосового сообщения
 
 ```http
-PATCH /mx/<mx-id>/voicemails/<id>
-Authorization: Basic ZG06Nzg1NjE=
+PATCH /voicemails/82 HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
 
+{"note":"text note"}
+```
+
+Идентификатор голосового сообщения задается в URL запроса.
+
+Задает метку о прочтении и/или комментарий к голосовому сообщению:
+
+```json
 {
-  "note": "текст заметки",
+  "note": "text note",
   "readed": true
 }
 ```
 
-Параметры `note` и `readed` являются не обязательными и их можно не отдавать, если планируется изменить толкьо что-то одно. Но **хотя бы один** из этих параметров должен быть указан обязательно. Или оба.
+Параметры:
 
-В случае успешного выполнения возвращается код `204`. Если голосовой файл с таким идентификатором не найден или он принадлежит другому пользователю, то возвращается ошибка `404`.
+- `note` - текст заметки
+- `readed` - флаг прочтения
 
-### Регистрация токена устройства
+Параметры являются не обязательными, но хотя бы один из них должен быть указан. Если параметр не указан, то значение по умолчанию не используется и данное действие просто не выполняется.
 
-```http
-PUT /mx/<mx-id>/tokens/<type>/<app-id>/<token>
-Authorization: Basic ZG06Nzg1NjE=
-```
-
-`<type>` должен быть либо `apn`, либо `fcm` - в зависимости от типа токена. `<app-id>` задает идентификатор приложения для Android или идентификатор сертификата для Apple. Так же для устройств Apple может быть добавлен дополнительный параметр в адресе запроса `sandbox`, который указывает, что данный токен устройства может быть использован для отправки уведомлений через Apple Push Notification Sandbox:
+В ответ возвращает список использованных параметров:
 
 ```http
-PUT /mx/<mx-id>/tokens/apn/com.xyzrd.vialer.voip/<token>?sandbox
-Authorization: Basic ZG06Nzg1NjE=
-```
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
 
-Аналогичные команды, но с методом `DELETE` удаляют токен устройства.
-
-**ВНИМАНИЕ!** Токены устройств для Apple Push, добавленные с флагом `sandbox` и без него считаются **разными** токенами.
-
-## События
-
-При поступлении информации о входящем звонке на отслеживаемый номер пользователя автоматически отправляется push-уведомление на все токены устройств, зарегистрированные в сервисе. Пример формата сообщения:
-
-```json
 {
-    "callId": 190,
-    "deviceId": "3095",
-    "globalCallId": "2808630435142226873",
-    "callingDevice": "3044",
-    "calledDevice": "3095",
-    "alertingDevice": "3095",
-    "lastRedirectionDevice": "3044",
-    "localConnectionInfo": "alerting",
-    "cause": "normal",
-    "callTypeFlags": 170917889,
-    "timestamp": 1502213652
-}
-```
-
-Некоторые пустые поля могут быть опущены.
-
-## Конфигурационный файл
-
-```json
-{
-    "mx": {
-        "localhost": {
-            "login": "server-login",
-            "password": "12345678"
-        }
-    },
-    "timeouts": {
-        "connectTimeout": "5s",
-        "readTimeout": "2s",
-        "keepAliveDuration": "1m",
-        "reconnectDelay": "1m"
-    },
-    "apn": {
-        "push.p12": "password"
-    },
-    "fcm": {
-        "android-app-id": "AAAA0bHpCVQ:-FCM-APP-KEY"
+    "vm": {
+        "note": "text note"
     }
 }
 ```
 
-Список сервером Zultys MX, поддерживаемых сервисом, задается в разделе `mx` в виде названия или адреса хоста сервера и логина с паролем для серверной авторизации. Поддерживается только защищенное соединение с сервером MX. По умолчанию, если порт не указан, используется порт 7778.
+## Регистрация токена устройства
 
-Не обязательные параметры `timeouts` позволяют задать максимальное время ожидание подключения (`connectTimeout`) к серверу MX, время ожидания ответа по умолчанию (`readTimeout`), интервал между пактетами keepAlive (`keepAliveDuration`) и задержку перед восстановление подключения к серверу (`reconnectDelay`).
+```http
+PUT /tokens/apn/com.connector73.vialer.voip/7C179108B7BF759DED2D9CBED7969DE6623D34E200E46387E7D713917E0F3EB8 HTTP/1.1
+Authorization: Bearer <token>
+```
 
-Список сертификатов для Apple Push Notification задается в разделе `apn` в виде имени файла и пароля для его чтения.
+В запроса передаются тип токена (`apn` или `fcm`), идентификатор приложения или темы для уведомления, а так же сам токен.
 
-Для Firebase Cloud Messages задается название приложения и ключ для отправки уведомлений.
+## Удаление токена устройства
+
+```http
+DELETE /tokens/apn/com.connector73.vialer.voip/7C179108B7BF759DED2D9CBED7969DE6623D34E200E46387E7D713917E0F3EB8 HTTP/1.1
+Authorization: Bearer <token>
+```
+
+В запроса передаются тип токена (`apn` или `fcm`), идентификатор приложения или темы для уведомления, а так же сам токен.
+
+## Файл конфигурации
+
+- `provisioning` - задает адрес для авторизации пользователя и получения информации о настройках сервера MX. По умолчанию используется адрес <https://config.connector73.net/config>, поэтому задавать данное значение имеет смысл только в том случае, если вы хотите его переопределить.
+- `apps` - задает список идентификаторов приложения `client-id` и секретной строки `secret` для авторизации приложений *OAuth2*. Раздел является обязательным и не может быть пустым. Подробнее об используемой авторизации приложений смотри [Resource Owner Password Credentials Grant](https://tools.ietf.org/html/rfc6749#section-4.3).
+- `dbName` - задает путь и имя файла для хранения авторизационной информации пользователей и токенов устройств. Если не указано, то используется имя `mxproxy.db`.
+- `voip` раздел используется для настройки _Voice over IP Push_:
+    - `apn` - список имен файлов с сертификатами для _Apple VoIP Push_ и паролей для их открытия;
+    - `fcm` - список идентификаторов приложений и ключей для отправки уведомлений через _Google Firebase Cloud Messages_.
+- `jwt` задает настройки для токенов авторизации:
+    - `tokenTTL` - задает время валидности токена авторизации. По умолчанию - один час.
+    - `signKeyTTL` - задает время жизни ключа для подписи токена, после которого ключ автоматически меняется. По умолчанию - 6 часов.
+- `telegram` - настройки для отправки уведомлений об ошибках в канал _Telegram_:
+    - `token` - токен бота для отправки уведомлений;
+    - `chatID` - числовой идентификатор чата, пользователя или канала в _Telegram_.
+
+Пример конфигурационного файла:
+
+```json
+{
+    "apps": {
+        "client7664": "Mmx0OlWEDIDhPGgGpLQFxBwpCSPp9IIY"
+    },
+    "voip": {
+        "apn": {
+            "connector73.voip.p12": "xopen123"
+        },
+        "fcm": {
+            "com.connector73.vialer.voip": "AAAA0bHpCVQ:APA91bFQ_14Nvgr2q7dOp2WORG8hOoaxpxfSegbc8qgmSq6zrw5RHYpklEU6K55fg7DrhW0Q1ycIe9JzjEtfj-S5soQg5hnIdiYSQKWWM1oIFK5Hpa1aLtOf7_JW6jTP-5LrMY6p7Yge"
+        }
+    }
+}
+```

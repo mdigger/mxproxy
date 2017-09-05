@@ -2,250 +2,300 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/asn1"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/mdigger/log"
+	"golang.org/x/crypto/pkcs12"
+	"golang.org/x/net/http2"
 )
 
-// SendPush отправляет уведомление на все зарегистрированные токены устройств
-// пользователя.
-func (p *Proxy) SendPush(userID string, payload interface{}) error {
+// Push описывает конфигурация для отправки уведомлений через сервисы
+// Apple Push Notification и Firtbase Cloud Messaging.
+type Push struct {
+	apns  map[string]*http.Transport // сертификаты для Apple Push
+	fcm   map[string]string          // ключи для Firebase Cloud Messages
+	store *Store                     // хранилище токенов
+}
+
+// Send отсылает уведомление на все устройства пользователя.
+func (p *Push) Send(login string, obj interface{}) {
+	// запускаем параллельно отсылку пушей
+	go func() {
+		if err := p.sendAPN(login, obj); err != nil {
+			log.WithError(err).Error("send Apple Notification error")
+		}
+	}()
+	go func() {
+		if err := p.sendFCM(login, obj); err != nil {
+			log.WithError(err).Error("send Firebase Cloud Messages error")
+		}
+	}()
+}
+
+// sendAPN отсылает уведомление на все Apple устройства пользователя.
+func (p *Push) sendAPN(login string, obj interface{}) error {
 	// преобразуем данные для пуша в формат JSON
-	var dataPayload []byte
-	switch data := payload.(type) {
+	var payload []byte
+	switch obj := obj.(type) {
 	case []byte:
-		dataPayload = data
+		payload = obj
 	case string:
-		dataPayload = []byte(data)
+		payload = []byte(obj)
 	case json.RawMessage:
-		dataPayload = []byte(data)
+		payload = []byte(obj)
 	default:
 		var err error
-		dataPayload, err = json.Marshal(payload)
+		payload, err = json.Marshal(obj)
 		if err != nil {
 			log.WithError(err).Error("push payload to json error")
 			return err
 		}
 	}
-
-	ctxlog := log.WithField("user", userID)
-	// получаем список зарегистрированных устройств пользователя
-	userDeviceTokens, err := p.store.Tokens(userID)
-	if err != nil {
-		ctxlog.WithError(err).Error("get users tokens from store error")
-		return err
+	var client = &http.Client{
+		Timeout: time.Second * 5,
 	}
-	// разбираем токены устройств по их типу и topic id
-	for topicID, tokens := range userDeviceTokens {
-		// на всякий случай проверяем длину ключа, чтобы не было ошибок
+	for topic, transport := range p.apns {
+		// получаем список токенов пользователя для данного сертификата
+		var tokens = p.store.ListTokens("apn", topic, login)
 		if len(tokens) == 0 {
 			continue
 		}
-		ctxlog := ctxlog.WithField("topicID", topicID)
-		// находим разделитель типа
-		devider := strings.IndexByte(topicID, ':')
-		if devider < 0 || devider == len(topicID)-1 {
-			ctxlog.Warning("bad topicID type")
-			continue
+		client.Transport = transport
+		// задаем хост в зависимости от sandbox
+		var host string
+		if topic[len(topic)-1] != '~' {
+			host = "https://api.push.apple.com"
+		} else {
+			host = "https://api.development.push.apple.com"
 		}
-		// в зависимости от типов пушей различается их обработка
-		switch topicID[:devider] {
-		case "apn": // Apple Push
-			p.sendPushAPN(userID, topicID[devider+1:], tokens, dataPayload)
-		case "fcm": // Google Cloud Message
-			p.sendPushFCM(userID, topicID[devider+1:], tokens, dataPayload)
+		// для каждого токена устройства формируем отдельный запрос
+		var success, failure int // счетчики
+		for _, token := range tokens {
+			req, err := http.NewRequest("POST", host+"/3/device/"+token,
+				bytes.NewReader(payload))
+			if err != nil {
+				return err
+			}
+			req.Header.Set("user-agent", agent)
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := client.Do(req)
+			if err != nil {
+				break
+			}
+			if resp.StatusCode == http.StatusOK {
+				resp.Body.Close()
+				success++
+				continue
+			}
+			failure++
+			// разбираем ответ сервера с описанием ошибки
+			var apnsError = new(struct {
+				Reason string `json:"reason"`
+			})
+			err = json.NewDecoder(resp.Body).Decode(apnsError)
+			resp.Body.Close()
+			if err != nil {
+				continue
+			}
+			// в случае ошибки связанной с токеном устройства, удаляем его
+			switch apnsError.Reason {
+			case "MissingDeviceToken",
+				"BadDeviceToken",
+				"DeviceTokenNotForTopic",
+				"Unregistered":
+				p.store.RemoveToken("apn", topic, token)
+			default:
+			}
+			log.WithFields(log.Fields{
+				"topic":  topic,
+				"token":  token,
+				"reason": apnsError.Reason,
+			}).Debug("apple push error")
 		}
+		log.WithFields(log.Fields{
+			"topic":   topic,
+			"success": success,
+			"failure": failure,
+		}).Info("apple push sended")
 	}
 	return nil
 }
 
-var (
-	// PushTimeout задает максимальное время ожидание отправки уведомления
-	PushTimeout = time.Second * 5
-	userAgent   = fmt.Sprintf("%s/%s", appName, version) // имя агента для пушей
-)
-
-// sendPushAPN отправляет уведомления через Apple Push Notification.
-func (p *Proxy) sendPushAPN(userID, topicID string, tokens map[string]time.Time,
-	payload []byte) {
-	ctxlog := log.WithFields(log.Fields{
-		"topicID": topicID,
-		"user":    userID,
-	})
-	var transport = p.apns.Get(topicID)
-	if transport == nil {
-		ctxlog.Warning("apns push topicID ignored")
-		return // тема не поддерживается
-	}
-	var client = &http.Client{
-		Transport: transport,
-		Timeout:   PushTimeout,
-	}
-	// задаем хост в зависимости от sandbox
-	var host string
-	if topicID[len(topicID)-1] != '~' {
-		host = "https://api.push.apple.com"
-	} else {
-		host = "https://api.development.push.apple.com"
-	}
-	// для каждого токена устройства формируем отдельный запрос
-	var success, failure int // счетчики
-	for token := range tokens {
-		req, _ := http.NewRequest("POST", host+"/3/device/"+token,
-			bytes.NewReader(payload))
-		req.Header.Set("user-agent", userAgent)
+// sendFCM отсылает уведомление на все Google устройства пользователя.
+func (p *Push) sendFCM(login string, obj interface{}) error {
+	var client = &http.Client{Timeout: time.Second * 5}
+	for appName, fcmKey := range p.fcm {
+		// получаем список токенов пользователя для данного сертификата
+		var tokens = p.store.ListTokens("fcm", appName, login)
+		if len(tokens) == 0 {
+			continue
+		}
+		// формируем данные для отправки (без визуальной составляющей пуша:
+		// только данные)
+		var gfcmMsg = &struct {
+			RegistrationIDs []string    `json:"registration_ids,omitempty"`
+			Data            interface{} `json:"data,omitempty"`
+			TTL             uint16      `json:"time_to_live"`
+		}{
+			// т.к. тут только устройства ОДНОГО пользователя, то
+			// ограничением на количество токенов можно пренебречь
+			RegistrationIDs: tokens,
+			Data:            obj, // добавляем уже сформированные ранее данные
+			// время жизни сообщения TTL = 0, поэтому оно не кешируется
+			// на сервере, а сразу отправляется пользователю: для пушей
+			// оо звонках мне показалось это наиболее актуальным.
+		}
+		// приводим к формату JSON
+		data, err := json.Marshal(gfcmMsg)
+		if err != nil {
+			return err
+		}
+		req, err := http.NewRequest("POST",
+			"https://fcm.googleapis.com/fcm/send", bytes.NewReader(data))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("User-Agent", agent)
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "key="+fcmKey)
 		resp, err := client.Do(req)
 		if err != nil {
-			// в случае ошибки отправки пуша прекращаем обработку
-			// данного bundle
-			ctxlog.WithError(err).Error("apple push error")
-			break
+			return err
 		}
-		if resp.StatusCode == http.StatusOK {
+		// проверяем статус ответа
+		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			success++
-			continue
+			return err
 		}
-		failure++
-		// разбираем ответ сервера с описанием ошибки
-		var apnsError = new(struct {
-			Reason string `json:"reason"`
+		// разбираем ответ сервера
+		var result = new(struct {
+			Success int `json:"success"`
+			Failure int `json:"failure"`
+			Results []struct {
+				RegistrationID string `json:"registration_id"`
+				Error          string `json:"error"`
+			} `json:"results"`
 		})
-		err = json.NewDecoder(resp.Body).Decode(apnsError)
+		err = json.NewDecoder(resp.Body).Decode(result)
 		resp.Body.Close()
 		if err != nil {
-			ctxlog.WithError(err).Error("apple push response decode error")
-			continue
+			return err
 		}
-		// в случае ошибки связанной с токеном устройства, удаляем его
-		var ctxerr = ctxlog.WithField("error", apnsError.Reason)
-		switch apnsError.Reason {
-		case "MissingDeviceToken",
-			"BadDeviceToken",
-			"DeviceTokenNotForTopic",
-			"Unregistered":
-			p.store.TokenRemove(topicID, token)
-			ctxerr.Debug("remove apple bad token")
-		default:
-			ctxerr.Error("apple push error")
+		// проходим по массиву результатов в ответе для каждого токена
+		for indx, result := range result.Results {
+			switch result.Error {
+			case "":
+				// нет ошибки - доставлено
+				// проверяем, что, возможно, токен устарел и его нужно
+				// заменить на более новый, который указан в ответе
+				if result.RegistrationID != "" {
+					token := gfcmMsg.RegistrationIDs[indx]
+					p.store.RemoveToken("fcm", appName, token)
+					p.store.AddToken("fcm", appName, result.RegistrationID, login)
+				}
+			case "Unavailable":
+				// устройство в данный момент не доступно
+			default:
+				// все остальное представляет из себя, так или иначе,
+				// ошибки, связанные с неверным токеном устройства
+				token := gfcmMsg.RegistrationIDs[indx]
+				p.store.RemoveToken("fcm", appName, token)
+			}
+		}
+		log.WithFields(log.Fields{
+			"app":     appName,
+			"success": result.Success,
+			"failure": result.Failure,
+		}).Info("google push sended")
+	}
+	return nil
+}
+
+// Support возвращает true, если данная тема поддерживается в качестве
+// уведомления.
+func (p *Push) Support(kind, topic string) bool {
+	switch kind {
+	case "apn":
+		_, ok := p.apns[topic]
+		return ok
+	case "fcm":
+		_, ok := p.fcm[topic]
+		return ok
+	default:
+		return false
+	}
+}
+
+// LoadCertificate загружает сертификат для Apple Push и сохраняеи во внутреннем
+// списке подготовленный для него http.Transport.
+func (p *Push) LoadCertificate(filename, password string) error {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	privateKey, x509Cert, err := pkcs12.Decode(data, password)
+	if err != nil {
+		return err
+	}
+	if _, err = x509Cert.Verify(x509.VerifyOptions{}); err != nil {
+		if _, ok := err.(x509.UnknownAuthorityError); !ok {
+			return err
+		}
+	}
+	var topicID string
+	for _, attr := range x509Cert.Subject.Names {
+		if attr.Type.Equal(typeBundle) {
+			topicID = attr.Value.(string)
+			break
+		}
+	}
+	var transport = &http.Transport{
+		TLSClientConfig: &tls.Config{
+			Certificates: []tls.Certificate{
+				tls.Certificate{
+					Certificate: [][]byte{x509Cert.Raw},
+					PrivateKey:  privateKey,
+					Leaf:        nil,
+				},
+			},
+		},
+	}
+	if err = http2.ConfigureTransport(transport); err != nil {
+		return err
+	}
+	if p.apns == nil {
+		p.apns = make(map[string]*http.Transport)
+	}
+	for _, attr := range x509Cert.Extensions {
+		switch t := attr.Id; {
+		case t.Equal(typeDevelopmet): // Development
+			p.apns[topicID+"~"] = transport
+		case t.Equal(typeProduction): // Production
+			p.apns[topicID] = transport
+		case t.Equal(typeTopics): // Topics
+			// не поддерживаем сертификаты с несколькими темами, т.к. для них
+			// нужна более сложная работа
+			return errors.New("apns certificate with topics not supported")
 		}
 	}
 	log.WithFields(log.Fields{
-		"success": success,
-		"failure": failure,
-	}).Info("apple push sended")
+		"file":   filename,
+		"topic":  topicID,
+		"expire": x509Cert.NotAfter.Format("2006-01-02"),
+	}).Info("apple push certificate")
+	return nil
 }
 
-// sendPushFCM отправляет уведомления через Firebase Cloud Messages.
-func (p *Proxy) sendPushFCM(userID, topicID string, tokens map[string]time.Time,
-	payload []byte) {
-	ctxlog := log.WithFields(log.Fields{
-		"topicID": topicID,
-		"user":    userID,
-	})
-	// получаем ключ для авторизации пуша для приложения
-	// игнорируем все незарегистрированные типы приложений
-	key, ok := p.fcm[topicID]
-	if !ok {
-		ctxlog.Warning("push bundle ignored")
-		return
-	}
-	// формируем список токенов устройств
-	var bundleTokens = make([]string, 0, len(tokens))
-	for token := range tokens {
-		bundleTokens = append(bundleTokens, token)
-	}
-	// формируем данные для отправки (без визуальной составляющей пуша:
-	// только данные)
-	var gfcmMsg = &struct {
-		RegistrationIDs []string        `json:"registration_ids,omitempty"`
-		Data            json.RawMessage `json:"data,omitempty"`
-		TTL             uint16          `json:"time_to_live"`
-	}{
-		// т.к. тут только устройства ОДНОГО пользователя, то
-		// ограничением на количество токенов можно пренебречь
-		RegistrationIDs: bundleTokens,
-		// BUG(d3): данный хак позволяет не формировать второй раз
-		// представление данных в формате JSON, но накладывает ограничения
-		// на использование ИСКЛЮЧИТЕЛЬНО не визуальных данных
-		Data: payload, // добавляем уже сформированные ранее данные
-		// время жизни сообщения TTL = 0, поэтому оно не кешируется
-		// на сервере, а сразу отправляется пользователю: для пушей
-		// оо звонках мне показалось это наиболее актуальным.
-	}
-	// приводим к формату JSON
-	data, err := json.Marshal(gfcmMsg)
-	if err != nil {
-		ctxlog.WithError(err).Error("google push data create error")
-		return
-	}
-	req, _ := http.NewRequest("POST",
-		"https://fcm.googleapis.com/fcm/send", bytes.NewReader(data))
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "key="+key)
-	var client = &http.Client{Timeout: PushTimeout}
-	resp, err := client.Do(req)
-	if err != nil {
-		ctxlog.WithError(err).Error("google push request error")
-		return
-	}
-	// проверяем статус ответа
-	if resp.StatusCode != http.StatusOK {
-		ctxlog.WithField("status", resp.StatusCode).
-			Error("google push error")
-		resp.Body.Close()
-		return
-	}
-	// разбираем ответ сервера
-	var result = new(struct {
-		Success int `json:"success"`
-		Failure int `json:"failure"`
-		Results []struct {
-			RegistrationID string `json:"registration_id"`
-			Error          string `json:"error"`
-		} `json:"results"`
-	})
-	err = json.NewDecoder(resp.Body).Decode(result)
-	resp.Body.Close()
-	if err != nil {
-		ctxlog.WithError(err).Error("google push response decode error")
-		return
-	}
-	// проходим по массиву результатов в ответе для каждого токена
-	for indx, result := range result.Results {
-		switch result.Error {
-		case "":
-			// нет ошибки - доставлено
-			// проверяем, что, возможно, токен устарел и его нужно
-			// заменить на более новый, который указан в ответе
-			if result.RegistrationID != "" {
-				token := gfcmMsg.RegistrationIDs[indx]
-				ctxlog.WithField("token", token).
-					Debug("update google push token")
-				p.store.TokenRemove(topicID, token)
-				p.store.TokenAdd(userID, topicID, result.RegistrationID)
-			}
-		case "Unavailable":
-			// устройство в данный момент не доступно
-		default:
-			// все остальное представляет из себя, так или иначе,
-			// ошибки, связанные с неверным токеном устройства
-			token := gfcmMsg.RegistrationIDs[indx]
-			ctxlog.WithFields(log.Fields{
-				"token": token,
-				"error": result.Error,
-			}).Debug("remove google bad token")
-			p.store.TokenRemove(topicID, token)
-		}
-	}
-	ctxlog.WithFields(log.Fields{
-		"success": result.Success,
-		"failure": result.Failure,
-	}).Info("google push sended")
-}
+var (
+	typeBundle     = asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1}
+	typeDevelopmet = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 6, 3, 1}
+	typeProduction = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 6, 3, 2}
+	typeTopics     = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 6, 3, 6}
+)

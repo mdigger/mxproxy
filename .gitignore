@@ -1,7 +1,7 @@
 build/
 mxproxy
 debug
-mxproxy.paw
+*.paw
 *.db
 *.json
 *.p12

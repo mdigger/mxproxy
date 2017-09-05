@@ -3,50 +3,48 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/mdigger/log"
-	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
 	"golang.org/x/crypto/acme/autocert"
 )
 
 // информация о сервисе и версия
 var (
-	appName = "mxproxy" // название сервиса
-	version = "0.16"    // версия
+	appName = "MXProxy" // название сервиса
+	version = "2.0"     // версия
 	date    = ""        // дата сборки
 	git     = ""        // версия git
 
-	host         = appName + ".connector73.net" // имя сервера
-	configName   = appName + ".json"            // имя конфигурационного файла
-	tokensDBName = appName + ".db"              // имя файла с хранилищем токенов
-	debug        = false                        // флаг вывода отладочной информации
+	agent        = fmt.Sprintf("%s/%s", appName, version)
+	lowerAppName = strings.ToLower(appName)
+	host         = lowerAppName + ".connector73.net" // имя сервера
+	configName   = lowerAppName + ".json"            // имя файла с хранилищем токенов
+	cstaOutput   = false                             // флаг вывода команд и ответов CSTA
+	debug        = false                             // флаг вывода отладочной информации
 )
 
 func init() {
 	// инициализируем разбор параметров запуска сервиса
-	flag.StringVar(&host, "host", host, "main server `name`")
-	flag.StringVar(&configName, "config", configName, "config `filename`")
-	flag.StringVar(&tokensDBName, "db", tokensDBName, "tokens DB `filename`")
+	flag.StringVar(&host, "host", host, "main server `host name`")
+	flag.StringVar(&configName, "config", configName, "configuration `filename`")
 	flag.BoolVar(&debug, "debug", debug, "debug output")
-	var cstaOutput bool // флаг вывода команд и ответов CSTA
-	flag.BoolVar(&cstaOutput, "csta", cstaOutput, "CSTA output")
-	var logFlags = log.Lindent //| mx.Lcolor
+	var logFlags = log.Lindent | log.LstdFlags
 	flag.IntVar(&logFlags, "logflag", logFlags, "log flags")
+	flag.BoolVar(&cstaOutput, "csta", cstaOutput, "CSTA output")
 	flag.Parse()
 
 	log.SetFlags(logFlags) // устанваливаем флаги вывода в лог
 	// разрешаем вывод отладочной информации, включая вывод команд CSTA
 	if debug {
 		log.SetLevel(log.DebugLevel)
-	}
-	if cstaOutput {
-		mx.SetCSTALog(os.Stdout, logFlags)
 	}
 	// выводим информацию о текущей версии
 	var verInfoFields = log.Fields{
@@ -58,49 +56,102 @@ func init() {
 	}
 	if git != "" {
 		verInfoFields["git"] = git
+		agent += " (" + git + ")"
 	}
 	log.WithFields(verInfoFields).Info("service info")
 }
 
 func main() {
-	// загружаем конфигурацию и устаналвиваем серверные соединения с MX
-	proxy, err := LoadConfig(configName, tokensDBName)
+	// инициализируем сервис
+	proxy, err := InitProxy()
 	if err != nil {
-		log.WithError(err).Error("service initialization error")
+		log.WithError(err).Error("initializing proxy error")
 		os.Exit(2)
 	}
 	defer proxy.Close()
-
 	// инициализируем обработку HTTP запросов
 	var mux = &rest.ServeMux{
 		Headers: map[string]string{
-			"Server":            "MXProxy/1.1", // ¯\_(ツ)_/¯
-			"X-API-Version":     "1.0",
-			"X-Service-Version": version,
+			"Server": agent, // ¯\_(ツ)_/¯
 		},
-		Logger: log.WithField("type", "http"),
+		Logger: log.WithField("ctx", "http"),
 	}
-	if git != "" {
-		mux.Headers["Server"] += " (" + git + ")"
-	}
-	mux.Handle("GET", "/mx/:mx/contacts", proxy.GetAddressBook)
-	mux.Handle("GET", "/mx/:mx/contacts/:id", proxy.GetContact)
-	mux.Handle("POST", "/mx/:mx/calls", proxy.PostMakeCall)
-	mux.Handle("POST", "/mx/:mx/calls/:id", proxy.PostSIPAnswer)
-	mux.Handle("GET", "/mx/:mx/calls/log", proxy.GetCallLog)
-	mux.Handle("GET", "/mx/:mx/voicemails", proxy.GetVoiceMailList)
-	mux.Handle("GET", "/mx/:mx/voicemails/:id", proxy.GetVoiceMailFile)
-	mux.Handle("DELETE", "/mx/:mx/voicemails/:id", proxy.DeleteVoiceMail)
-	mux.Handle("PATCH", "/mx/:mx/voicemails/:id", proxy.PatchVoiceMail)
-	mux.Handle("PUT", "/mx/:mx/tokens/:type/:topic/:token", proxy.Token)
-	mux.Handle("DELETE", "/mx/:mx/tokens/:type/:topic/:token", proxy.Token)
+	// генериция авторизационных токенов
+	mux.Handle("POST", "/auth", proxy.Login)
+	mux.Handle("GET", "/auth/logout", proxy.Logout)
+
+	mux.Handle("GET", "/contacts", proxy.Contacts)
+
+	mux.Handle("GET", "/calls", proxy.CallLog)
+	mux.Handle("PATCH", "/calls", proxy.SetMode)
+	mux.Handle("POST", "/calls", proxy.MakeCall)
+	mux.Handle("PUT", "/calls/:id", proxy.SIPAnswer)
+
+	mux.Handle("GET", "/voicemails", proxy.Voicemails)
+	mux.Handle("GET", "/voicemails/:id", proxy.GetVoiceMailFile)
+	mux.Handle("DELETE", "/voicemails/:id", proxy.DeleteVoicemail)
+	mux.Handle("PATCH", "/voicemails/:id", proxy.PatchVoiceMail)
+
+	mux.Handle("PUT", "/tokens/:type/:topic/:token", proxy.Token)
+	mux.Handle("DELETE", "/tokens/:type/:topic/:token", proxy.Token)
 
 	if debug {
-		// отдает хранилище токенов в JSON формате
-		mux.Handle("GET", "/debug/store", proxy.Store)
+		mux.Handles(rest.Paths{
+			// отдает список запущенных соединений
+			"/debug/connections": rest.Methods{
+				"GET": func(c *rest.Context) error {
+					var list []string
+					proxy.conns.Range(func(login, _ interface{}) bool {
+						list = append(list, login.(string))
+						return true
+					})
+					sort.Strings(list)
+					return c.Write(rest.JSON{"connections": list})
+				},
+			},
+			// список зарегистрированных приложений для авторизации OAuth2
+			"/debug/apps": rest.Methods{
+				"GET": func(c *rest.Context) error {
+					var list = make(map[string]string, len(proxy.appsAuth))
+					for appName, secret := range proxy.appsAuth {
+						list[appName] = secret
+					}
+					return c.Write(rest.JSON{"apps": list})
+				},
+			},
+			// список зарегистрированных пользователей
+			"/debug/users": rest.Methods{
+				"GET": func(c *rest.Context) error {
+					return c.Write(
+						rest.JSON{"users": proxy.store.section(bucketUsers)})
+				},
+			},
+			// список зарегистрированных токенов устройств
+			"/debug/tokens": rest.Methods{
+				"GET": func(c *rest.Context) error {
+					return c.Write(
+						rest.JSON{"tokens": proxy.store.section(bucketTokens)})
+				},
+			},
+		}, func(c *rest.Context) error {
+			// проверяем авторизацию при обращении к данным
+			clientID, secret, ok := c.BasicAuth()
+			if !ok {
+				c.SetHeader("WWW-Authenticate",
+					fmt.Sprintf("Basic realm=%q", appName+" client application"))
+				return rest.ErrUnauthorized
+			}
+			if appSecret, ok := proxy.appsAuth[clientID]; !ok || appSecret != secret {
+				return rest.ErrForbidden
+			}
+			c.AddLogField("app", clientID)
+			return nil
+		})
 	}
 
-	StartHTTPServer(mux, host)            // запускаем HTTP сервер
+	sendMonitorText("service started")
+	defer sendMonitorText("service stopped")
+	startHTTPServer(mux, host)            // запускаем HTTP сервер
 	monitorSignals(os.Interrupt, os.Kill) // ожидаем сигнала остановки
 }
 
@@ -114,7 +165,7 @@ func monitorSignals(signals ...os.Signal) os.Signal {
 }
 
 // StartHTTPServer запускает HTTP сервер.
-func StartHTTPServer(mux http.Handler, hosts ...string) {
+func startHTTPServer(mux http.Handler, hosts ...string) {
 	if len(hosts) == 0 {
 		return
 	}
