@@ -1,7 +1,7 @@
 appname  ?= mxproxy
 
 DATE     ?= $(shell date -u +%F)
-# GIT      ?= $(shell git describe --tag --long --always --dirty 2>/dev/null)
+VERSION  ?= $(shell git describe --tag --long --always --dirty 2>/dev/null)
 GIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 
 FLAGS   := -ldflags "-X main.git=$(GIT) -X main.date=$(DATE)"
@@ -15,17 +15,18 @@ zip = cd ./build && zip $(1)_$(2).zip $(appname)$(3) && rm $(appname)$(3)
 
 
 info:
-	@echo "-----------------------------"
-	@echo "Go:   $(subst go version ,,$(shell go version))"
-	@echo "Date: $(DATE)"
-	@echo "Git:  $(GIT)"
-	@echo "-----------------------------"
+	@echo "────────────────────────────────"
+	@echo "Go:       $(subst go version ,,$(shell go version))"
+	@echo "Date:     $(DATE)"
+	@echo "Git:      $(GIT)"
+	@echo "Version:  $(VERSION)"
+	@echo "────────────────────────────────"
 
 package: info clean darwin linux
 	cp README.md ./build
 	cp $(appname).json ./build
 	cp connector73.voip.p12 ./build
-	cd ./build && zip $(appname)_$(GIT).zip *.*
+	cd ./build && zip $(appname)-$(VERSION).zip *.*
 
 build: info
 	go build -race -o $(appname) $(FLAGS)
