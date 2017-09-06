@@ -155,7 +155,7 @@ type Contact struct {
 	JID        mx.JID `xml:"jid,attr" json:"jid,string"`
 	FirstName  string `xml:"firstName" json:"firstName"`
 	LastName   string `xml:"lastName" json:"lastName"`
-	Ext        string `xml:"businessPhone" json:"extension"`
+	Ext        string `xml:"businessPhone" json:"ext"`
 	HomePhone  string `xml:"homePhone" json:"homePhone,omitempty"`
 	CellPhone  string `xml:"cellPhone" json:"cellPhone,omitempty"`
 	Email      string `xml:"email" json:"email,omitempty"`
@@ -230,7 +230,7 @@ type CallInfo struct {
 	OriginalCalledPartyNo string `xml:"originalCalledPartyNo" json:"originalCalledPartyNo"`
 	FirstName             string `xml:"firstName" json:"firstName,omitempty"`
 	LastName              string `xml:"lastName" json:"lastName,omitempty"`
-	Extension             string `xml:"extension" json:"extension,omitempty"`
+	Extension             string `xml:"extension" json:"ext,omitempty"`
 	ServiceName           string `xml:"serviceName" json:"serviceName,omitempty"`
 	ServiceExtension      string `xml:"serviceExtension" json:"serviceExtension,omitempty"`
 	CallType              int64  `xml:"callType" json:"callType,omitempty"`
