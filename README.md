@@ -53,7 +53,7 @@ Content-Type: application/json; charset=utf-8
 ## Удаление пользователя
 
 ```http
-GET /auth/logout HTTP/1.1
+DELETE /auth/logout HTTP/1.1
 Authorization: Bearer <token>
 ```
 
