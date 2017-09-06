@@ -1,7 +1,9 @@
-appname  := mxproxy
+appname  ?= mxproxy
 
-DATE     := $(shell date -u +%F)
-GIT      := $(shell git describe --tag --long --always --dirty 2>/dev/null)
+DATE     ?= $(shell date -u +%F)
+# GIT      ?= $(shell git describe --tag --long --always --dirty 2>/dev/null)
+GIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null)
+
 FLAGS   := -ldflags "-X main.git=$(GIT) -X main.date=$(DATE)"
 
 
