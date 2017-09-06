@@ -27,6 +27,8 @@ type Proxy struct {
 	jwtGen          *JWTGenerator     // генератор авторизационных токенов
 	conns           sync.Map          // пользовательские соединения с MX
 	push            *Push             // отправитель уведомлений
+	stopped         bool              // флаг остановки сервиса
+	mu              sync.RWMutex
 }
 
 // InitProxy инициализирует и возвращает сервис проксирования запросов к MX.
@@ -147,7 +149,12 @@ func InitProxy() (proxy *Proxy, err error) {
 		mxconf, _ := store.GetUser(login) // получаем конфигурацию
 		// устанавливаем соединение
 		if err = proxy.connect(mxconf, login); err != nil {
-			store.RemoveUser(login) // удаляем пользователя
+			// в случае ошибки авторизации удаляем пользователя
+			if _, ok := err.(*mx.LoginError); ok {
+				store.RemoveUser(login)
+			}
+			log.WithError(err).WithField("login", login).
+				Error("mx user connection error")
 		}
 	}
 	return proxy, nil
@@ -155,20 +162,33 @@ func InitProxy() (proxy *Proxy, err error) {
 
 // Close останавливает все пользовательские соединения и закрывает хранилище.
 func (p *Proxy) Close() error {
+	p.mu.Lock()
+	p.stopped = true // флаг остановки сервиса
+	p.mu.Unlock()
 	p.jwtGen.Close() // останавливаем удаление старых ключей
 	p.conns.Range(func(login, conn interface{}) bool {
-		conn.(*MXConn).Close() // останавливаем соединение
 		p.conns.Delete(login)  // удаляем из списка
+		conn.(*MXConn).Close() // останавливаем соединение
 		return true
 	})
 	log.Info("proxy stopped")
 	return p.store.Close()
 }
 
+// isStopped возвращает true, если сервис остановлен.
+func (p *Proxy) isStopped() bool {
+	p.mu.RLock()
+	var result = p.stopped
+	p.mu.RUnlock()
+	return result
+}
+
 // connect осуществляет подключение пользователя к серверу MX.
 func (p *Proxy) connect(conf *MXConfig, login string) error {
 	conn, err := MXConnect(conf, login)
 	if err != nil {
+		log.WithError(err).Error("mx user connection error")
+		sendMonitorError(err) // отсылаем ошибку
 		// в зависимости от типа ошибки возвращаем разный статус
 		var status = http.StatusServiceUnavailable
 		if _, ok := err.(*mx.LoginError); ok {
@@ -176,29 +196,69 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		} else if errNet, ok := err.(net.Error); ok && errNet.Timeout() {
 			status = http.StatusGatewayTimeout
 		}
-		log.WithError(err).Error("mx user connection error")
-		sendMonitorError(err) // отсылаем ошибку
 		return rest.NewError(status, err.Error())
 	}
 	p.conns.Store(login, conn) // сохраняем соединение в списке
 	log.WithField("login", login).Info("mx user connected")
-	// запускаем мониторинг входящих звонков
-	go conn.Handle(func(resp *mx.Response) error {
-		var delivery = new(Delivery)
-		if err := resp.Decode(delivery); err != nil {
-			return err
-		}
-		if delivery.CalledDevice == "" {
+
+	go func(conn *MXConn, login string) {
+		ctxlog := log.WithField("login", login)
+		ctxlog.Debug("mx user call monitoring")
+		defer ctxlog.Debug("mx user call monitoring end")
+	monitoring:
+		// запускаем мониторинг входящих звонков
+		err := conn.Handle(func(resp *mx.Response) error {
+			var delivery = new(Delivery)
+			if err := resp.Decode(delivery); err != nil {
+				return err
+			}
+			if delivery.CalledDevice == "" {
+				return nil
+			}
+			delivery.Timestamp = time.Now().Unix()
+			p.push.Send(conn.Login, delivery) // отсылаем уведомление
+			ctxlog.WithField("id", delivery.CallID).Info("incoming call")
 			return nil
+		}, "DeliveredEvent")
+		// проверяем, что сервис или соединение не остановлены
+		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
+			return // сервис или соединение остановлены
 		}
-		delivery.Timestamp = time.Now().Unix()
-		p.push.Send(conn.Login, delivery) // отсылаем уведомление
-		log.WithFields(log.Fields{
-			"id":    delivery.CallID,
-			"login": login,
-		}).Info("incoming call")
-		return nil
-	}, "DeliveredEvent")
+		if err != nil {
+			log.WithError(err).Error("monitoring error")
+		}
+		// ждем окончания
+		if err := <-conn.Done(); err != nil {
+			ctxlog.WithError(err).Error("mx user connection error")
+		}
+		p.conns.Delete(login) // удаляем из списка соединений
+	reconnect:
+		conf, err = p.store.GetUser(login) // получаем конфигурацию
+		if err != nil {
+			ctxlog.WithError(err).Error("mx user config error")
+			return
+		}
+		ctxlog.WithField("delay", time.Minute).Debug("mx user reconnecting")
+		time.Sleep(time.Minute) // задержка перед переподключением
+		if p.isStopped() {
+			return // сервис остановлен
+		}
+		conn, err = MXConnect(conf, login)
+		if err != nil {
+			ctxlog.WithError(err).Error("mx user connection error")
+			sendMonitorError(err) // отсылаем ошибку
+			// в случае ошибки авторизации удаляем пользователя
+			if _, ok := err.(*mx.LoginError); ok {
+				p.store.RemoveUser(login)
+				return
+			}
+			goto reconnect
+		}
+		p.conns.Store(login, conn) // сохраняем соединение в списке
+		ctxlog.Info("mx user connected")
+		goto monitoring
+	}(conn, login)
+
 	return nil
 }
 
@@ -283,8 +343,8 @@ func (p *Proxy) Logout(c *rest.Context) error {
 	c.AddLogField("login", login) // добавляем в лог
 	// останавливаем соединение
 	if conn, ok := p.conns.Load(login); ok {
-		conn.(*MXConn).Close() // останавливаем соединение
 		p.conns.Delete(login)  // удаляем из списка
+		conn.(*MXConn).Close() // останавливаем соединение
 	}
 	// удаляем из хранилища
 	if err = p.store.RemoveUser(login); err != nil {
