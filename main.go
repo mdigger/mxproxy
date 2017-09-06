@@ -78,6 +78,7 @@ func main() {
 	}
 	// генериция авторизационных токенов
 	mux.Handle("POST", "/auth", proxy.Login)
+	mux.Handle("GET", "/auth", proxy.LoginInfo)
 	mux.Handle("GET", "/auth/logout", proxy.Logout)
 
 	mux.Handle("GET", "/contacts", proxy.Contacts)

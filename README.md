@@ -30,6 +30,26 @@ Server: MXProxy/2.0
 
 Токен действителен ограниченное количество времени, которое указывается в `expires_in` в секундах.
 
+## Информация об авторизованном пользователе MX
+
+```http
+GET /auth HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Возвращает информацию об авторизованном пользователе:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+    "mx": "63022",
+    "ext": "3044",
+    "jid": "43884851428118509"
+}
+```
+
 ## Удаление пользователя
 
 ```http
@@ -58,25 +78,25 @@ Content-Type: application/json; charset=utf-8
             "jid": "43884852633771555",
             "firstName": "SMS",
             "lastName": "Gateway C73",
-            "extension": "3010"
+            "ext": "3010"
         },
         {
             "jid": "43884851338921185",
             "firstName": "mxflex",
             "lastName": "mxflex",
-            "extension": "3042"
+            "ext": "3042"
         },
         {
             "jid": "43884852654574210",
             "firstName": "Ilia",
             "lastName": "Test",
-            "extension": "3043"
+            "ext": "3043"
         },
         {
             "jid": "43884851428118509",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "homePhone": "+1-202-555-0104",
             "cellPhone": "+1-512-555-0136",
             "email": "peterh@xyzrd.com",
@@ -86,7 +106,7 @@ Content-Type: application/json; charset=utf-8
             "jid": "43884850646482261",
             "firstName": "Mike",
             "lastName": "Flynn",
-            "extension": "3055",
+            "ext": "3055",
             "homePhone": "+1-202-555-0104",
             "cellPhone": "+1-512-555-0136",
             "email": "mikef@xyzrd.com"
@@ -95,31 +115,31 @@ Content-Type: application/json; charset=utf-8
             "jid": "43884850557879186",
             "firstName": "Test",
             "lastName": "One",
-            "extension": "3080"
+            "ext": "3080"
         },
         {
             "jid": "43884851776746473",
             "firstName": "Test",
             "lastName": "Two",
-            "extension": "3081"
+            "ext": "3081"
         },
         {
             "jid": "43884852542754454",
             "firstName": "Test",
             "lastName": "Three",
-            "extension": "3082"
+            "ext": "3082"
         },
         {
             "jid": "43884852535898307",
             "firstName": "dstest1",
             "lastName": "dstest1",
-            "extension": "3091"
+            "ext": "3091"
         },
         {
             "jid": "43884850939404214",
             "firstName": "dstest2",
             "lastName": "dstest2",
-            "extension": "3092",
+            "ext": "3092",
             "cellPhone": "16693507465",
             "did": "16693507465"
         },
@@ -127,19 +147,19 @@ Content-Type: application/json; charset=utf-8
             "jid": "43884850647480796",
             "firstName": "Test",
             "lastName": "Admin",
-            "extension": "3093"
+            "ext": "3093"
         },
         {
             "jid": "43884852355777349",
             "firstName": "Zultys",
             "lastName": "Test",
-            "extension": "3094"
+            "ext": "3094"
         },
         {
             "jid": "43884851147406145",
             "firstName": "Dmitry",
             "lastName": "Sedykh",
-            "extension": "3095",
+            "ext": "3095",
             "cellPhone": "+79031744445",
             "email": "dmitrys@xyzrd.com"
         },
@@ -147,19 +167,19 @@ Content-Type: application/json; charset=utf-8
             "jid": "43884851851343044",
             "firstName": "Sergey",
             "lastName": "Kananykhin",
-            "extension": "3096"
+            "ext": "3096"
         },
         {
             "jid": "43884851514905017",
             "firstName": "Test",
             "lastName": "Zultys",
-            "extension": "3097"
+            "ext": "3097"
         },
         {
             "jid": "43884851324615074",
             "firstName": "John",
             "lastName": "Smith",
-            "extension": "3098",
+            "ext": "3098",
             "cellPhone": "12035160992",
             "did": "12035160992"
         },
@@ -167,14 +187,14 @@ Content-Type: application/json; charset=utf-8
             "jid": "43884852031096113",
             "firstName": "Maxim",
             "lastName": "Donchenko",
-            "extension": "3099",
+            "ext": "3099",
             "cellPhone": "+420720961083"
         }
     ]
 }
 ```
 
-У контакта поддерживаются следующие поля: `jid`, `firstName`, `lastName`, `extension`, `homePhone`, `cellPhone`, `email`, `homeSystem`, `did`, `exchangeId`. Поля с пустыми значениями могут быть опущены.
+У контакта поддерживаются следующие поля: `jid`, `firstName`, `lastName`, `ext`, `homePhone`, `cellPhone`, `email`, `homeSystem`, `did`, `exchangeId`. Поля с пустыми значениями могут быть опущены.
 
 ## Список звонков пользователя
 
@@ -202,7 +222,7 @@ Content-Type: application/json; charset=utf-8
             "originalCalledPartyNo": "3095",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "callType": 1,
             "legType": 1,
             "selfLegType": 9
@@ -386,7 +406,7 @@ Content-Type: application/json; charset=utf-8
             "originalCalledPartyNo": "3095",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "callType": 1,
             "legType": 1,
             "selfLegType": 9
@@ -401,7 +421,7 @@ Content-Type: application/json; charset=utf-8
             "originalCalledPartyNo": "voicemail.3095",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "callType": 1,
             "legType": 1,
             "selfLegType": 3
@@ -417,7 +437,7 @@ Content-Type: application/json; charset=utf-8
             "originalCalledPartyNo": "3095",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "callType": 1,
             "legType": 1,
             "selfLegType": 9
@@ -432,7 +452,7 @@ Content-Type: application/json; charset=utf-8
             "originalCalledPartyNo": "voicemail.3095",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "callType": 1,
             "legType": 1,
             "selfLegType": 3
@@ -448,7 +468,7 @@ Content-Type: application/json; charset=utf-8
             "originalCalledPartyNo": "3095",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "callType": 1,
             "legType": 1,
             "selfLegType": 9
@@ -463,7 +483,7 @@ Content-Type: application/json; charset=utf-8
             "originalCalledPartyNo": "voicemail.3095",
             "firstName": "Peter",
             "lastName": "Hyde",
-            "extension": "3044",
+            "ext": "3044",
             "callType": 1,
             "legType": 1,
             "selfLegType": 3
@@ -527,7 +547,7 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-Полный список возможных полей: `missed` (_bool_), `direction`, `record_id` (_number_), `gcid`, `connectTimestamp` (_timestamp_), `disconnectTimestamp` (_timestamp_), `callingPartyNo`, `originalCalledPartyNo`, `firstName`, `lastName`, `extension`, `serviceName`, `serviceExtension`, `callType` (_number_), `legType` (_number_), `selfLegType` (_number_), `monitorType` (_number_). Пустые поля могут быть опущены.
+Полный список возможных полей: `missed` (_bool_), `direction`, `record_id` (_number_), `gcid`, `connectTimestamp` (_timestamp_), `disconnectTimestamp` (_timestamp_), `callingPartyNo`, `originalCalledPartyNo`, `firstName`, `lastName`, `ext`, `serviceName`, `serviceExtension`, `callType` (_number_), `legType` (_number_), `selfLegType` (_number_), `monitorType` (_number_). Пустые поля могут быть опущены.
 
 К сожалению, сервер MX не предоставляет возможности определить, что список отдан полностью, поэтому это делается чисто эврестическим способом: обычно ответ разбивается сервером на группы по 21 звонку, поэтому проверяется, что последняя группа содержит меньше 21 звонка. Если вдруг случается, что в последней группе ровно 21 звонок, то ответ придется ждать до окончания таймаута ожидания (2 минуты по умолчанию).
 

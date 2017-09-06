@@ -386,6 +386,23 @@ func (p *Proxy) getConnection(c *rest.Context) (conn *MXConn, err error) {
 		"active mx connection unavailable")
 }
 
+// LoginInfo возвращает информацию об авторизованном пользователе MX.
+func (p *Proxy) LoginInfo(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	return c.Write(&struct {
+		MX  string `json:"mx"`
+		Ext string `json:"ext"`
+		JID mx.JID `json:"jid,string"`
+	}{
+		MX:  conn.SN,
+		Ext: conn.Ext,
+		JID: conn.JID,
+	})
+}
+
 // Contacts отдает адресную книгу сервера MX.
 func (p *Proxy) Contacts(c *rest.Context) error {
 	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
