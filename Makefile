@@ -9,7 +9,7 @@ build = GOOS=$(1) GOARCH=$(2) go build -o build/$(appname)$(3) $(FLAGS)
 tar = cd ./build && tar -czf $(1)_$(2).tar.gz $(appname)$(3) && rm $(appname)$(3)
 zip = cd ./build && zip $(1)_$(2).zip $(appname)$(3) && rm $(appname)$(3)
 
-.PHONY: all windows darwin linux clean build
+.PHONY: all windows darwin linux clean build package
 
 
 info:
@@ -18,6 +18,12 @@ info:
 	@echo "Date: $(DATE)"
 	@echo "Git:  $(GIT)"
 	@echo "-----------------------------"
+
+package: info clean darwin linux
+	cp README.md ./build
+	cp $(appname).json ./build
+	cp connector73.voip.p12 ./build
+	cd ./build && zip $(appname)_$(GIT).zip *.*
 
 build: info
 	go build -race -o $(appname) $(FLAGS)
