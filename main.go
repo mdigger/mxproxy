@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -166,22 +167,30 @@ func monitorSignals(signals ...os.Signal) os.Signal {
 }
 
 // StartHTTPServer запускает HTTP сервер.
-func startHTTPServer(mux http.Handler, hosts ...string) {
-	if len(hosts) == 0 {
-		return
-	}
+func startHTTPServer(mux http.Handler, host string) {
 	// инициализируем HTTP сервер
-	server := &http.Server{
+	var server = &http.Server{
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Minute * 5,
 	}
+	// анализируем порт
+	var httphost, port, err = net.SplitHostPort(host)
+	if err, ok := err.(*net.AddrError); ok && err.Err == "missing port in address" {
+		httphost = err.Addr
+	}
+	var isIP = (net.ParseIP(httphost) != nil)
+	var notLocal = (httphost != "localhost" &&
+		!strings.HasSuffix(httphost, ".local") &&
+		!isIP)
+	var canCert = notLocal && httphost != "" &&
+		(port == "443" || port == "https" || port == "")
+
 	// добавляем автоматическую поддержку TLS сертификатов для сервиса
-	if !strings.HasPrefix(hosts[0], "localhost") &&
-		!strings.HasPrefix(hosts[0], "127.0.0.1") {
+	if canCert {
 		manager := autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(hosts...),
+			HostPolicy: autocert.HostWhitelist(httphost),
 			Email:      "dmitrys@xyzrd.com",
 			Cache:      autocert.DirCache("letsEncript.cache"),
 		}
@@ -189,30 +198,27 @@ func startHTTPServer(mux http.Handler, hosts ...string) {
 			GetCertificate: manager.GetCertificate,
 		}
 		server.Addr = ":https"
-	} else if len(hosts) > 1 {
-		server.Addr = ":http"
+	} else if port == "" {
+		server.Addr = net.JoinHostPort(httphost, "http")
 	} else {
-		server.Addr = hosts[0]
+		server.Addr = net.JoinHostPort(httphost, port)
 	}
 	// запускаем HTTP сервер
 	go func() {
-		var secure = (server.Addr == ":https" || server.Addr == ":443")
-		slog := log.WithFields(log.Fields{
+		log.WithFields(log.Fields{
 			"address": server.Addr,
-			"tls":     secure,
-		})
-		if server.Addr != hosts[0] {
-			slog = slog.WithField("host", strings.Join(hosts, ","))
-		}
-		slog.Info("starting http server")
+			"tls":     canCert,
+			"host":    httphost,
+		}).Info("starting http server")
 		var err error
-		if secure {
+		if canCert {
 			err = server.ListenAndServeTLS("", "")
 		} else {
 			err = server.ListenAndServe()
 		}
 		if err != nil {
 			log.WithError(err).Error("http server stoped")
+			sendMonitorError(err)
 			os.Exit(2)
 		}
 	}()

@@ -10,7 +10,7 @@ import (
 
 // sendMonitorText отправляет данные на сервер мониторинга.
 func sendMonitorText(text string) error {
-	if sendMonitor == nil || strings.HasPrefix(host, "localhost") {
+	if sendMonitor == nil {
 		return nil
 	}
 	if sendFooter == "" {
