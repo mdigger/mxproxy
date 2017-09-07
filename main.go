@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -189,10 +191,16 @@ func startHTTPServer(mux http.Handler, host string) {
 	// добавляем автоматическую поддержку TLS сертификатов для сервиса
 	if canCert {
 		manager := autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(httphost),
-			Email:      "dmitrys@xyzrd.com",
-			Cache:      autocert.DirCache("letsEncript.cache"),
+			Prompt: autocert.AcceptTOS,
+			HostPolicy: func(_ context.Context, host string) error {
+				if host != httphost {
+					log.WithField("host", host).Error("unsupported https host")
+					return errors.New("acme/autocert: host not configured")
+				}
+				return nil
+			},
+			Email: "dmitrys@xyzrd.com",
+			Cache: autocert.DirCache("letsEncript.cache"),
 		}
 		server.TLSConfig = &tls.Config{
 			GetCertificate: manager.GetCertificate,
