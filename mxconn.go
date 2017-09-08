@@ -220,7 +220,7 @@ func (c *MXConn) CallLog(timestamp time.Time) ([]*CallInfo, error) {
 
 // CallInfo описывает информацию о записи в логе звонков.
 type CallInfo struct {
-	Missed                bool   `xml:"missed,attr" json:"missed,omitempty"`
+	Missed                bool   `xml:"missed,attr" json:"missed"` // всегда отдавать
 	Direction             string `xml:"direction,attr" json:"direction"`
 	RecordID              int64  `xml:"record_id" json:"record_id"`
 	GCID                  string `xml:"gcid" json:"gcid"`

@@ -117,6 +117,7 @@ func InitProxy() (proxy *Proxy, err error) {
 	// открываем хранилище
 	store, err := OpenStore(config.DBName)
 	if err != nil {
+		log.WithError(err).Error("store error")
 		return nil, err
 	}
 
