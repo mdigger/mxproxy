@@ -44,7 +44,7 @@ func init() {
 	flag.BoolVar(&cstaOutput, "csta", cstaOutput, "CSTA output")
 	flag.Parse()
 
-	log.SetFlags(logFlags) // устанваливаем флаги вывода в лог
+	log.SetFlags(logFlags) // устанавливаем флаги вывода в лог
 	// разрешаем вывод отладочной информации, включая вывод команд CSTA
 	if debug {
 		log.SetLevel(log.DebugLevel)
@@ -79,7 +79,7 @@ func main() {
 		},
 		Logger: log.WithField("ctx", "http"),
 	}
-	// генериция авторизационных токенов
+	// генерация авторизационных токенов
 	mux.Handle("POST", "/auth", proxy.Login)
 	mux.Handle("GET", "/auth", proxy.LoginInfo)
 	mux.Handle("DELETE", "/auth", proxy.Logout)
@@ -200,7 +200,7 @@ func startHTTPServer(mux http.Handler, host string) {
 				return nil
 			},
 			Email: "dmitrys@xyzrd.com",
-			Cache: autocert.DirCache("letsEncript.cache"),
+			Cache: autocert.DirCache("letsEncrypt.cache"),
 		}
 		server.TLSConfig = &tls.Config{
 			GetCertificate: manager.GetCertificate,
@@ -225,7 +225,7 @@ func startHTTPServer(mux http.Handler, host string) {
 			err = server.ListenAndServe()
 		}
 		if err != nil {
-			log.WithError(err).Error("http server stoped")
+			log.WithError(err).Error("http server stopped")
 			sendMonitorError(err)
 			os.Exit(2)
 		}

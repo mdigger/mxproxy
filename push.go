@@ -17,7 +17,7 @@ import (
 )
 
 // Push описывает конфигурация для отправки уведомлений через сервисы
-// Apple Push Notification и Firtbase Cloud Messaging.
+// Apple Push Notification и Firebase Cloud Messaging.
 type Push struct {
 	apns  map[string]*http.Transport // сертификаты для Apple Push
 	fcm   map[string]string          // ключи для Firebase Cloud Messages
@@ -123,7 +123,7 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			"topic":   topic,
 			"success": success,
 			"failure": failure,
-		}).Info("apple push sended")
+		}).Info("apple push")
 	}
 	return nil
 }
@@ -213,7 +213,7 @@ func (p *Push) sendFCM(login string, obj interface{}) error {
 			"app":     appName,
 			"success": result.Success,
 			"failure": result.Failure,
-		}).Info("google push sended")
+		}).Info("google push")
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ func (p *Push) Support(kind, topic string) bool {
 	}
 }
 
-// LoadCertificate загружает сертификат для Apple Push и сохраняеи во внутреннем
+// LoadCertificate загружает сертификат для Apple Push и сохраняем во внутреннем
 // списке подготовленный для него http.Transport.
 func (p *Push) LoadCertificate(filename, password string) error {
 	data, err := ioutil.ReadFile(filename)

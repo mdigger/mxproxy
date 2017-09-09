@@ -549,7 +549,7 @@ Content-Type: application/json; charset=utf-8
 
 Полный список возможных полей: `missed` (_bool_), `direction`, `record_id` (_number_), `gcid`, `connectTimestamp` (_timestamp_), `disconnectTimestamp` (_timestamp_), `callingPartyNo`, `originalCalledPartyNo`, `firstName`, `lastName`, `ext`, `serviceName`, `serviceExtension`, `callType` (_number_), `legType` (_number_), `selfLegType` (_number_), `monitorType` (_number_). Пустые поля могут быть опущены.
 
-К сожалению, сервер MX не предоставляет возможности определить, что список отдан полностью, поэтому это делается чисто эврестическим способом: обычно ответ разбивается сервером на группы по 21 звонку, поэтому проверяется, что последняя группа содержит меньше 21 звонка. Если вдруг случается, что в последней группе ровно 21 звонок, то ответ придется ждать до окончания таймаута ожидания (2 минуты по умолчанию).
+К сожалению, сервер MX не предоставляет возможности определить, что список отдан полностью, поэтому это делается чисто эвристическим способом: обычно ответ разбивается сервером на группы по 21 звонку, поэтому проверяется, что последняя группа содержит меньше 21 звонка. Если вдруг случается, что в последней группе ровно 21 звонок, то ответ придется ждать до окончания таймаута ожидания (2 минуты по умолчанию).
 
 ## Режим звонков
 
@@ -651,7 +651,7 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-Опициональные параметры:
+Опциональные параметры:
 
 - `timeout` по умолчанию равен `30`.
 
@@ -680,7 +680,7 @@ Content-Type: application/json; charset=utf-8
             "id": "82",
             "received": 1502213652,
             "duration": 29,
-            "readed": true,
+            "read": true,
             "note": "text note"
         },
         {
@@ -697,7 +697,7 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-Поддерживаемые поля: `from`, `fromName`, `callerName`, `to`, `ownerType`, `id`, `received` (_timestamp_), `duration` (_number_), `readed` (_bool_), `note`. Пустые поля могут быть опущены.
+Поддерживаемые поля: `from`, `fromName`, `callerName`, `to`, `ownerType`, `id`, `received` (_timestamp_), `duration` (_number_), `read` (_bool_), `note`. Пустые поля могут быть опущены.
 
 ## Файл с голосовым сообщением
 
@@ -742,14 +742,14 @@ Content-Type: application/json; charset=utf-8
 ```json
 {
   "note": "text note",
-  "readed": true
+  "read": true
 }
 ```
 
 Параметры:
 
 - `note` - текст заметки
-- `readed` - флаг прочтения
+- `read` - флаг прочтения
 
 Параметры являются не обязательными, но хотя бы один из них должен быть указан. Если параметр не указан, то значение по умолчанию не используется и данное действие просто не выполняется.
 

@@ -82,7 +82,7 @@ func InitProxy() (proxy *Proxy, err error) {
 	if len(config.AppsAuth) == 0 {
 		return nil, errors.New("oauth2 apps not configured")
 	}
-	// выводим в лог списко идентификаторов приложений
+	// выводим в лог список идентификаторов приложений
 	var list = make([]string, 0, len(config.AppsAuth))
 	for appName := range config.AppsAuth {
 		list = append(list, appName)
@@ -554,7 +554,7 @@ func (p *Proxy) DeleteVoicemail(c *rest.Context) error {
 	return nil
 }
 
-// PatchVoiceMail изменяет заметку и/или флаг прочитанности голосового
+// PatchVoiceMail изменяет заметку и/или флаг прочитанного голосового
 // сообщения.
 func (p *Proxy) PatchVoiceMail(c *rest.Context) error {
 	conn, err := p.getConnection(c)
@@ -563,20 +563,20 @@ func (p *Proxy) PatchVoiceMail(c *rest.Context) error {
 	}
 	// разбираем переданные параметры
 	var params = new(struct {
-		Readed *bool   `json:"readed,omitempty" form:"readed"`
-		Note   *string `json:"note,omitempty" form:"note"`
+		Read *bool   `json:"read,omitempty" form:"read"`
+		Note *string `json:"note,omitempty" form:"note"`
 	})
 	if err := c.Bind(params); err != nil {
 		return err
 	}
 	// проверяем, что хотя бы один из них определен
-	if params.Readed == nil && params.Note == nil {
+	if params.Read == nil && params.Note == nil {
 		return rest.ErrBadRequest
 	}
 	var msgID = c.Param("id")
 	// изменяем текст заметки, если он задан
-	if params.Readed != nil {
-		if err = conn.VoiceMailSetReaded(msgID, *params.Readed); err != nil {
+	if params.Read != nil {
+		if err = conn.VoiceMailSetRead(msgID, *params.Read); err != nil {
 			if _, ok := err.(*mx.CSTAError); ok {
 				return rest.ErrNotFound
 			}
@@ -640,11 +640,11 @@ func (p *Proxy) Token(c *rest.Context) error {
 		return err
 	}
 	var (
-		tokenType = c.Param("type")  // тип токаена: apn, fcm
+		tokenType = c.Param("type")  // тип токена: apn, fcm
 		topicID   = c.Param("topic") // идентификатор приложения
 		token     = c.Param("token") // токен устройства
 	)
-	// проверям, что мы поддерживаем данные токены устройства
+	// проверяем, что мы поддерживаем данные токены устройства
 	switch tokenType {
 	case "apn": // Apple Push Notification
 		// проверяем, что взведен флаг sandbox

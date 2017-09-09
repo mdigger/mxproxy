@@ -96,7 +96,7 @@ func (s *Store) ListTokens(kind, topic, login string) []string {
 	return list
 }
 
-// add сохраняет объект в указанном разделе хранилище с заданым ключем.
+// add сохраняет объект в указанном разделе хранилище с заданным ключом.
 func (s *Store) add(section, key string, obj interface{}) error {
 	var data []byte
 	switch obj := obj.(type) {
@@ -121,11 +121,11 @@ func (s *Store) add(section, key string, obj interface{}) error {
 	})
 }
 
-// ErrNotFound возвращается, если в хранилище нет данных с таким ключем.
+// ErrNotFound возвращается, если в хранилище нет данных с таким ключом.
 var ErrNotFound = rest.ErrNotFound
 
-// remove удаляет данные с заданым ключем из указанного раздела хранилища. Если
-// данных с таким ключем в хранилище не найдено, то возвращает ошибку
+// remove удаляет данные с заданным ключом из указанного раздела хранилища. Если
+// данных с таким ключом в хранилище не найдено, то возвращает ошибку
 // ErrNotFound.
 func (s *Store) remove(section, key string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
@@ -139,7 +139,7 @@ func (s *Store) remove(section, key string) error {
 	})
 }
 
-// get возвращает данные с заданым ключем из указанного раздела хранилище.
+// get возвращает данные с заданным ключом из указанного раздела хранилище.
 func (s *Store) get(section, key string, obj interface{}) error {
 	var data []byte
 	if err := s.db.View(func(tx *bolt.Tx) error {

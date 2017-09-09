@@ -243,7 +243,7 @@ type CallInfo struct {
 // SIP звонок.
 var ErrNotAssigned = rest.NewError(http.StatusBadRequest, "device bind failed")
 
-// AssignDevice ассоциирует телефонный номер с имененем устройства.
+// AssignDevice ассоциирует телефонный номер с именем устройства.
 func (c *MXConn) AssignDevice(name string) error {
 	// отправляем команду для ассоциации устройства по имени
 	type device struct {
@@ -396,7 +396,7 @@ type VoiceMail struct {
 	ID         string        `xml:"mailId" json:"id"`
 	Received   int64         `xml:"received" json:"received"`
 	Duration   time.Duration `xml:"duration" json:"duration,omitempty"`
-	Readed     bool          `xml:"read" json:"readed,omitempty"`
+	Read       bool          `xml:"read" json:"read,omitempty"`
 	Note       string        `xml:"note" json:"note,omitempty"`
 }
 
@@ -414,8 +414,8 @@ func (c *MXConn) VoiceMailDelete(id string) error {
 	return err
 }
 
-// VoiceMailSetReaded позволяет изменить состояние прочтения голосового сообщения.
-func (c *MXConn) VoiceMailSetReaded(id string, readed bool) error {
+// VoiceMailSetRead позволяет изменить состояние прочтения голосового сообщения.
+func (c *MXConn) VoiceMailSetRead(id string, read bool) error {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	_, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"MailSetStatus"`
@@ -423,7 +423,7 @@ func (c *MXConn) VoiceMailSetReaded(id string, readed bool) error {
 		Flag    bool     `xml:"read"`
 	}{
 		MailID: id,
-		Flag:   readed,
+		Flag:   read,
 	})
 	return err
 }

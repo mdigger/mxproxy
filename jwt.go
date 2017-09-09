@@ -111,7 +111,7 @@ func (j *JWTGenerator) getKey(alg, id string) interface{} {
 	return nil
 }
 
-// ErrUnknownSignKey возвращается при верификации токена с устаревшим ключем.
+// ErrUnknownSignKey возвращается при верификации токена с устаревшим ключом.
 var ErrUnknownSignKey = errors.New("unknown or obsolete signing key")
 
 // Verify проверяет валидность токена и возвращает информацию о логине
