@@ -4,13 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"mime"
-	"net/http"
 	"sort"
 	"time"
 
 	"github.com/mdigger/log"
 	"github.com/mdigger/mx"
-	"github.com/mdigger/rest"
 )
 
 func init() {
@@ -239,10 +237,6 @@ type CallInfo struct {
 	MonitorType           int64  `xml:"monitorType" json:"monitorType,omitempty"`
 }
 
-// ErrNotAssigned возвращается при ошибке назначения устройства при ответе на
-// SIP звонок.
-var ErrNotAssigned = rest.NewError(http.StatusBadRequest, "device bind failed")
-
 // AssignDevice ассоциирует телефонный номер с именем устройства.
 func (c *MXConn) AssignDevice(name string) error {
 	// отправляем команду для ассоциации устройства по имени
@@ -250,7 +244,7 @@ func (c *MXConn) AssignDevice(name string) error {
 		Type string `xml:"type,attr"`
 		Name string `xml:",chardata"`
 	}
-	resp, err := c.SendWithResponse(&struct {
+	return c.Send(&struct {
 		XMLName xml.Name `xml:"AssignDevice"`
 		Device  device   `xml:"deviceID"`
 	}{
@@ -259,20 +253,6 @@ func (c *MXConn) AssignDevice(name string) error {
 			Name: name,
 		},
 	})
-	if err != nil {
-		return err
-	}
-	// разбираем ответ
-	var assign = new(struct {
-		DeviceID string `xml:"AssignDeviceInfo>deviceID"`
-	})
-	if err = resp.Decode(assign); err != nil {
-		return err
-	}
-	if assign.DeviceID != name {
-		return ErrNotAssigned
-	}
-	return nil
 }
 
 // SetMode устанавливает режим звонка.
