@@ -87,6 +87,7 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := client.Do(req)
 			if err != nil {
+				log.WithError(err).Error("apn send error")
 				break
 			}
 			if resp.StatusCode == http.StatusOK {
