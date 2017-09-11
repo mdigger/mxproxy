@@ -498,6 +498,19 @@ func (p *Proxy) MakeCall(c *rest.Context) error {
 	return c.Write(rest.JSON{"makeCall": resp})
 }
 
+// AssignDevice ассоциирует имя устройства с пользовательской сессией.
+func (p *Proxy) AssignDevice(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	var deviceID = c.Param("name")
+	if deviceID == "" {
+		return rest.ErrNotFound
+	}
+	return conn.AssignDevice(deviceID)
+}
+
 // SIPAnswer инициализирует поддержку SIP звонка.
 func (p *Proxy) SIPAnswer(c *rest.Context) error {
 	conn, err := p.getConnection(c) // проверяем токен и получаем соединение

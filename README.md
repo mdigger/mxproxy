@@ -593,6 +593,14 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
+## Назначение устройства для звонка
+
+```http
+PATCH /calls/{name} HTTP/1.1
+Authorization: Bearer <token>
+```
+
+
 ## Серверный звонок
 
 ```http
@@ -654,6 +662,7 @@ Content-Type: application/json; charset=utf-8
 Опциональные параметры:
 
 - `timeout` по умолчанию равен `30`.
+- если `device` указан, то происходит вызов назначения устройства.
 
 В ответ возвращается полный список параметров или ошибка, если не удалось перехватить звонок.
 

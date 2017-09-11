@@ -330,9 +330,11 @@ type MakeCallResponse struct {
 
 // SIPAnswer подтверждает прием звонка по SIP.
 func (c *MXConn) SIPAnswer(callID int64, deviceID string, timeout time.Duration) error {
-	// отправляем команду для ассоциации устройства по имени
-	if err := c.AssignDevice(deviceID); err != nil {
-		return err
+	if deviceID != "" {
+		// отправляем команду для ассоциации устройства по имени
+		if err := c.AssignDevice(deviceID); err != nil {
+			return err
+		}
 	}
 	// теперь отправляем команду на подтверждение звонка
 	_, err := c.SendWithResponseTimeout(&struct {
