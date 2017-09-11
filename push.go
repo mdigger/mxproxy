@@ -16,6 +16,9 @@ import (
 	"golang.org/x/net/http2"
 )
 
+// PushTimeout задает максимальное время ожидания ответа при посылке уведомлений.
+var PushTimeout = time.Second * 30
+
 // Push описывает конфигурация для отправки уведомлений через сервисы
 // Apple Push Notification и Firebase Cloud Messaging.
 type Push struct {
@@ -59,7 +62,7 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 		}
 	}
 	var client = &http.Client{
-		Timeout: time.Second * 5,
+		Timeout: PushTimeout,
 	}
 	for topic, transport := range p.apns {
 		// получаем список токенов пользователя для данного сертификата
@@ -131,7 +134,7 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 
 // sendFCM отсылает уведомление на все Google устройства пользователя.
 func (p *Push) sendFCM(login string, obj interface{}) error {
-	var client = &http.Client{Timeout: time.Second * 5}
+	var client = &http.Client{Timeout: PushTimeout}
 	for appName, fcmKey := range p.fcm {
 		// получаем список токенов пользователя для данного сертификата
 		var tokens = p.store.ListTokens("fcm", appName, login)
