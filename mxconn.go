@@ -244,7 +244,7 @@ func (c *MXConn) AssignDevice(name string) error {
 		Type string `xml:"type,attr"`
 		Name string `xml:",chardata"`
 	}
-	return c.Send(&struct {
+	_, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"AssignDevice"`
 		Device  device   `xml:"deviceID"`
 	}{
@@ -253,6 +253,7 @@ func (c *MXConn) AssignDevice(name string) error {
 			Name: name,
 		},
 	})
+	return err
 }
 
 // SetMode устанавливает режим звонка.
