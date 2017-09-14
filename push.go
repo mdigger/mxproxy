@@ -22,9 +22,9 @@ var PushTimeout = time.Second * 30
 // Push описывает конфигурация для отправки уведомлений через сервисы
 // Apple Push Notification и Firebase Cloud Messaging.
 type Push struct {
-	apns  map[string]*http.Transport // сертификаты для Apple Push
-	fcm   map[string]string          // ключи для Firebase Cloud Messages
-	store *Store                     // хранилище токенов
+	apns  map[string]*http.Client // сертификаты для Apple Push
+	fcm   map[string]string       // ключи для Firebase Cloud Messages
+	store *Store                  // хранилище токенов
 }
 
 // Send отсылает уведомление на все устройства пользователя.
@@ -61,16 +61,12 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			return err
 		}
 	}
-	var client = &http.Client{
-		Timeout: PushTimeout,
-	}
-	for topic, transport := range p.apns {
+	for topic, client := range p.apns {
 		// получаем список токенов пользователя для данного сертификата
 		var tokens = p.store.ListTokens("apn", topic, login)
 		if len(tokens) == 0 {
 			continue
 		}
-		client.Transport = transport
 		// задаем хост в зависимости от sandbox
 		var host string
 		if topic[len(topic)-1] != '~' {
@@ -90,8 +86,10 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := client.Do(req)
 			if err != nil {
-				log.WithError(err).Error("apn send error")
-				break
+				failure++
+				sendMonitorError(err)
+				log.WithError(err).Error("apple push send error")
+				continue
 			}
 			if resp.StatusCode == http.StatusOK {
 				resp.Body.Close()
@@ -132,9 +130,10 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 	return nil
 }
 
+var fcmClient = &http.Client{Timeout: PushTimeout}
+
 // sendFCM отсылает уведомление на все Google устройства пользователя.
 func (p *Push) sendFCM(login string, obj interface{}) error {
-	var client = &http.Client{Timeout: PushTimeout}
 	for appName, fcmKey := range p.fcm {
 		// получаем список токенов пользователя для данного сертификата
 		var tokens = p.store.ListTokens("fcm", appName, login)
@@ -169,8 +168,9 @@ func (p *Push) sendFCM(login string, obj interface{}) error {
 		req.Header.Set("User-Agent", agent)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "key="+fcmKey)
-		resp, err := client.Do(req)
+		resp, err := fcmClient.Do(req)
 		if err != nil {
+			sendMonitorError(err)
 			return err
 		}
 		// проверяем статус ответа
@@ -270,19 +270,26 @@ func (p *Push) LoadCertificate(filename, password string) error {
 				},
 			},
 		},
+		// MaxIdleConns:    10,
+		// MaxIdleConnsPerHost: 2,
+		IdleConnTimeout: time.Minute * 10,
 	}
 	if err = http2.ConfigureTransport(transport); err != nil {
 		return err
 	}
+	var client = &http.Client{
+		Timeout:   PushTimeout,
+		Transport: transport,
+	}
 	if p.apns == nil {
-		p.apns = make(map[string]*http.Transport)
+		p.apns = make(map[string]*http.Client)
 	}
 	for _, attr := range x509Cert.Extensions {
 		switch t := attr.Id; {
 		case t.Equal(typeDevelopmet): // Development
-			p.apns[topicID+"~"] = transport
+			p.apns[topicID+"~"] = client
 		case t.Equal(typeProduction): // Production
-			p.apns[topicID] = transport
+			p.apns[topicID] = client
 		case t.Equal(typeTopics): // Topics
 			// не поддерживаем сертификаты с несколькими темами, т.к. для них
 			// нужна более сложная работа

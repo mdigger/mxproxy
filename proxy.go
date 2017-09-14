@@ -124,7 +124,7 @@ func InitProxy() (proxy *Proxy, err error) {
 	// загружаем сертификаты для VoIP Apple Push
 	var push = &Push{
 		store: store,
-		apns:  make(map[string]*http.Transport, len(config.VoIP.APN)),
+		apns:  make(map[string]*http.Client, len(config.VoIP.APN)),
 		fcm:   config.VoIP.FCM,
 	}
 	for filename, password := range config.VoIP.APN {
