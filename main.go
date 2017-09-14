@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mdigger/log"
+	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -44,9 +45,17 @@ func init() {
 	flag.BoolVar(&cstaOutput, "csta", cstaOutput, "CSTA output")
 	flag.Parse()
 
+	// подменяем символы на сообщения
+	log.Strings = map[log.Level]string{
+		log.DebugLevel:   "DEBUG",
+		log.InfoLevel:    "INFO",
+		log.WarningLevel: "WARN",
+		log.ErrorLevel:   "︎ERROR",
+	}
 	log.SetFlags(logFlags) // устанавливаем флаги вывода в лог
 	// разрешаем вывод отладочной информации, включая вывод команд CSTA
 	if debug {
+		mx.LogINOUT = map[bool]string{true: "IN", false: "OUT"}
 		log.SetLevel(log.DebugLevel)
 	}
 	// выводим информацию о текущей версии

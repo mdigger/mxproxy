@@ -14,7 +14,7 @@ func sendMonitorText(text string) error {
 		return nil
 	}
 	if sendFooter == "" {
-		sendFooter = fmt.Sprintf("\n──────────────────────────────\n"+
+		sendFooter = fmt.Sprintf("\n────────────────\n"+
 			"Service: %s\nVersion: %s\nBuilded: %s\nGit: %s\nHost: %s",
 			appName, version, date, git, host)
 	}

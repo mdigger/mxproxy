@@ -41,10 +41,10 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 	}()
 	if cstaOutput {
 		// добавляем лог CSTA
-		conn.Logger = log.WithField("login", login)
+		conn.SetLogger(log.WithField("login", login))
 	}
 	// авторизуемся
-	if err = conn.Login(mx.Login{
+	if _, err = conn.Login(mx.Login{
 		UserName: conf.Login,
 		Password: conf.Password,
 		Type:     "Mobile",
