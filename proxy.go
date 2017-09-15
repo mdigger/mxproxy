@@ -524,6 +524,7 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 	}
 	// инициализируем параметры по умолчанию и разбираем запрос
 	var params = &struct {
+		CallID  int64  `json:"callId" form:"callId"`
 		Device  string `json:"device" form:"device"`
 		Timeout uint16 `json:"timeout" form:"timeout"`
 	}{
@@ -536,6 +537,7 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 		time.Duration(params.Timeout)*time.Second); err != nil {
 		return err
 	}
+	params.CallID = callID
 	return c.Write(rest.JSON{"sipAnswer": params})
 }
 
