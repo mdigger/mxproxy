@@ -1,18 +1,18 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/mdigger/log"
 	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
@@ -35,22 +35,22 @@ type Proxy struct {
 func InitProxy() (proxy *Proxy, err error) {
 	// Telegram описывает настройки для чата Telegram
 	type Telegram struct {
-		Token  string `json:"token"`  // токен для Telegram
-		ChatID int64  `json:"chatID"` // идентификатор чата
+		Token  string `toml:"token"`  // токен для Telegram
+		ChatID int64  `toml:"chatID"` // идентификатор чата
 	}
 	var config = &struct {
-		ProvisioningURL string            `json:"provisioning"`
-		AppsAuth        map[string]string `json:"apps"`
-		DBName          string            `json:"dbName"`
+		ProvisioningURL string            `toml:"provisioning"`
+		AppsAuth        map[string]string `toml:"apps"`
+		DBName          string            `toml:"dbName"`
 		VoIP            struct {
-			APN map[string]string `json:"apn"`
-			FCM map[string]string `json:"fcm"`
-		} `json:"voip"`
+			APN map[string]string `toml:"apn"`
+			FCM map[string]string `toml:"fcm"`
+		} `toml:"voip"`
 		JWT struct {
-			TokenTTL   string `json:"tokenTTL"`   // время жизни токена
-			SingKeyTTL string `json:"signKeyTTL"` // время жизни ключа
-		} `json:"jwt"`
-		Telegram Telegram `json:"telegram"`
+			TokenTTL   string `toml:"tokenTTL"`   // время жизни токена
+			SingKeyTTL string `toml:"signKeyTTL"` // время жизни ключа
+		} `toml:"jwt"`
+		Telegram Telegram `toml:"telegram"`
 	}{
 		ProvisioningURL: "https://config.connector73.net/config",
 		DBName:          lowerAppName + ".db",
@@ -60,19 +60,19 @@ func InitProxy() (proxy *Proxy, err error) {
 		},
 	}
 	// разбираем конфигурационный файл, если он существует
-	file, err := os.Open(configName)
+	log.WithField("filename", configName).Info("loading configuration")
+	data, err := ioutil.ReadFile(configName)
 	if err != nil {
 		return nil, err
 	}
-	log.WithField("filename", configName).Info("loading configuration")
-	err = json.NewDecoder(file).Decode(config)
-	file.Close()
-	if err != nil {
+	if err = toml.Unmarshal(data, config); err != nil {
 		return nil, err
 	}
 
 	// инициализируем поддержку отправки ошибок через Telegram
-	if config.Telegram.Token != "" && config.Telegram.ChatID != 0 {
+	if config.Telegram.Token != "" && config.Telegram.ChatID != 0 &&
+		!strings.HasPrefix(host, "localhost") &&
+		!strings.HasPrefix(host, "127.0.0.1") {
 		sendMonitor = telegram.NewChatBot(config.Telegram.Token,
 			config.Telegram.ChatID, telegram.TypeMarkdown)
 	}

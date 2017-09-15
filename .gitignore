@@ -6,3 +6,4 @@ debug
 *.json
 *.p12
 *.log
+*.toml

@@ -600,7 +600,6 @@ PATCH /calls/{name} HTTP/1.1
 Authorization: Bearer <token>
 ```
 
-
 ## Серверный звонок
 
 ```http
@@ -810,18 +809,12 @@ Authorization: Bearer <token>
 
 Пример конфигурационного файла:
 
-```json
-{
-    "apps": {
-        "client7664": "Mmx0OlWEDIDhPGgGpLQFxBwpCSPp9IIY"
-    },
-    "voip": {
-        "apn": {
-            "connector73.voip.p12": "xopen123"
-        },
-        "fcm": {
-            "com.connector73.vialer.voip": "AAAA0bHpCVQ:APA91bFQ_14Nvgr2q7dOp2WORG8hOoaxpxfSegbc8qgmSq6zrw5RHYpklEU6K55fg7DrhW0Q1ycIe9JzjEtfj-S5soQg5hnIdiYSQKWWM1oIFK5Hpa1aLtOf7_JW6jTP-5LrMY6p7Yge"
-        }
-    }
-}
+```toml
+[apps]
+  client1 = "client-secret"
+
+[voip.apn]
+  "certificate.p12" = "password"
+[voip.fcm]
+  "app" = "AAAA0bHpCVQ:APA9...p7Yge"
 ```

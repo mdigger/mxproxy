@@ -30,7 +30,7 @@ var (
 	agent        = fmt.Sprintf("%s/%s", appName, version)
 	lowerAppName = strings.ToLower(appName)
 	host         = lowerAppName + ".connector73.net" // имя сервера
-	configName   = lowerAppName + ".json"            // имя файла с хранилищем токенов
+	configName   = lowerAppName + ".toml"            // имя файла с хранилищем токенов
 	cstaOutput   = false                             // флаг вывода команд и ответов CSTA
 	debug        = false                             // флаг вывода отладочной информации
 )

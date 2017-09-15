@@ -24,7 +24,7 @@ info:
 
 package: info clean darwin linux
 	cp README.md ./build
-	cp $(appname).json ./build
+	cp $(appname).toml ./build
 	cp connector73.voip.p12 ./build
 	cd ./build && zip $(appname)-$(VERSION).zip *.*
 
