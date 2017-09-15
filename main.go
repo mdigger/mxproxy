@@ -55,7 +55,7 @@ func init() {
 	log.SetFlags(logFlags) // устанавливаем флаги вывода в лог
 	// разрешаем вывод отладочной информации, включая вывод команд CSTA
 	if debug {
-		mx.LogINOUT = map[bool]string{true: "IN", false: "OUT"}
+		mx.LogINOUT = map[bool]string{true: "MX IN", false: "MX OUT"}
 		log.SetLevel(log.DebugLevel)
 	}
 	// выводим информацию о текущей версии
