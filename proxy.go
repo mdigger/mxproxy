@@ -209,16 +209,19 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 	monitoring:
 		// запускаем мониторинг входящих звонков
 		err := conn.Handle(func(resp *mx.Response) error {
-			var delivery = new(Delivery)
-			if err := resp.Decode(delivery); err != nil {
+			var delivered = new(DeliveredEvent)
+			if err := resp.Decode(delivered); err != nil {
 				return err
 			}
-			if delivery.CalledDevice == "" {
+			// фильтруем события о звонках
+			if delivered.CalledDevice != conn.Ext &&
+				delivered.AlertingDevice != conn.Ext {
+				ctxlog.WithField("id", delivered.CallID).Debug("ignore incoming call")
 				return nil
 			}
-			delivery.Timestamp = time.Now().Unix()
-			p.push.Send(conn.Login, delivery) // отсылаем уведомление
-			ctxlog.WithField("id", delivery.CallID).Info("incoming call")
+			delivered.Timestamp = time.Now().Unix()
+			p.push.Send(conn.Login, delivered) // отсылаем уведомление
+			ctxlog.WithField("id", delivered.CallID).Info("incoming call")
 			return nil
 		}, "DeliveredEvent")
 		// проверяем, что сервис или соединение не остановлены
@@ -263,8 +266,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 	return nil
 }
 
-// Delivery описывает структуру события входящего звонка
-type Delivery struct {
+// DeliveredEvent описывает структуру события входящего звонка
+type DeliveredEvent struct {
 	MonitorCrossRefID     int64  `xml:"monitorCrossRefID" json:"-"`
 	CallID                int64  `xml:"connection>callID" json:"callId"`
 	DeviceID              string `xml:"connection>deviceID" json:"deviceId"`
