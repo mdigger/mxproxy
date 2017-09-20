@@ -37,7 +37,7 @@ func init() {
 	// инициализируем разбор параметров запуска сервиса
 	flag.StringVar(&host, "host", host, "main server `host name`")
 	flag.StringVar(&configName, "config", configName, "configuration `filename`")
-	var logLevel = int(log.INFO)
+	var logLevel = int(log.TRACE)
 	flag.IntVar(&logLevel, "log", logLevel, "log `level`")
 	flag.Parse()
 
@@ -170,6 +170,7 @@ func startHTTPServer(mux http.Handler, host string) {
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Minute * 5,
+		ErrorLog:     log.StdLog(log.WARN, "http"),
 	}
 	// анализируем порт
 	var httphost, port, err = net.SplitHostPort(host)
