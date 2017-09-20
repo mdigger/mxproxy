@@ -32,7 +32,7 @@ build: info
 	go build -race -o $(appname) $(FLAGS)
 
 debug: build
-	./$(appname) -host localhost:8000 -debug -csta -logflag 192
+	./$(appname) -host localhost:8000 -log=-2
 
 clean:
 	rm -rf build/

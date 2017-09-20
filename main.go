@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/mdigger/log"
-	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -31,7 +30,6 @@ var (
 	lowerAppName = strings.ToLower(appName)
 	host         = lowerAppName + ".connector73.net" // имя сервера
 	configName   = lowerAppName + ".toml"            // имя файла с хранилищем токенов
-	cstaOutput   = false                             // флаг вывода команд и ответов CSTA
 	debug        = false                             // флаг вывода отладочной информации
 )
 
@@ -39,25 +37,12 @@ func init() {
 	// инициализируем разбор параметров запуска сервиса
 	flag.StringVar(&host, "host", host, "main server `host name`")
 	flag.StringVar(&configName, "config", configName, "configuration `filename`")
-	flag.BoolVar(&debug, "debug", debug, "debug output")
-	var logFlags = log.Lindent | log.LstdFlags
-	flag.IntVar(&logFlags, "logflag", logFlags, "log flags")
-	flag.BoolVar(&cstaOutput, "csta", cstaOutput, "CSTA output")
+	var logLevel = int(log.INFO)
+	flag.IntVar(&logLevel, "log", logLevel, "log `level`")
 	flag.Parse()
 
-	// подменяем символы на сообщения
-	log.Strings = map[log.Level]string{
-		log.DebugLevel:   "DEBUG",
-		log.InfoLevel:    "INFO",
-		log.WarningLevel: "WARN",
-		log.ErrorLevel:   "︎ERROR",
-	}
-	log.SetFlags(logFlags) // устанавливаем флаги вывода в лог
-	// разрешаем вывод отладочной информации, включая вывод команд CSTA
-	if debug {
-		mx.LogINOUT = map[bool]string{true: "MX IN", false: "MX OUT"}
-		log.SetLevel(log.DebugLevel)
-	}
+	log.SetLevel(log.Level(logLevel))
+	debug = logLevel < 0
 	// выводим информацию о текущей версии
 	var verInfoFields = log.Fields{
 		"name":    appName,
@@ -86,7 +71,7 @@ func main() {
 		Headers: map[string]string{
 			"Server": agent, // ¯\_(ツ)_/¯
 		},
-		Logger: log.WithField("ctx", "http"),
+		Logger: log.New("http"),
 	}
 	// генерация авторизационных токенов
 	mux.Handle("POST", "/auth", proxy.Login)
