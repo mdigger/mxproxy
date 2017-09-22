@@ -40,7 +40,7 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 		}
 	}()
 	// добавляем лог CSTA
-	conn.SetLogger(log.New("MX-" + login))
+	conn.SetLogger(log.New("mx:" + login))
 	// авторизуемся
 	if _, err = conn.Login(mx.Login{
 		UserName: conf.Login,
@@ -346,6 +346,22 @@ func (c *MXConn) SIPAnswer(callID int64, deviceID string, timeout time.Duration)
 	return err
 }
 
+// Transfer подтверждает прием звонка по SIP.
+func (c *MXConn) Transfer(callID int64, deviceID, to string) error {
+	// теперь отправляем команду на подтверждение звонка
+	_, err := c.SendWithResponse(&struct {
+		XMLName  xml.Name `xml:"SingleStepTransferCall"`
+		CallID   int64    `xml:"activeCall>callID"`
+		DeviceID string   `xml:"activeCall>deviceID"`
+		To       string   `xml:"transferredTo"`
+	}{
+		CallID:   callID,
+		DeviceID: deviceID,
+		To:       to,
+	})
+	return err
+}
+
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
 func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
 	// запрашиваем список голосовых сообщений
@@ -465,4 +481,28 @@ func (c *MXConn) VoiceMailFile(id string) (*Chunks, error) {
 		done:     make(chan struct{}), // канал для закрытия
 	}
 	return vminfo, nil
+}
+
+// GetServiceList возвращает информацию о сервисах, запущенных на сервере MX.
+func (c *MXConn) GetServiceList() ([]*MXServiceInfo, error) {
+	resp, err := c.SendWithResponse("<GetServiceList/>")
+	if err != nil {
+		return nil, err
+	}
+	var services = new(struct {
+		Services []*MXServiceInfo `xml:"Service"`
+	})
+	if err = resp.Decode(services); err != nil {
+		return nil, err
+	}
+	return services.Services, nil
+}
+
+// MXServiceInfo описывает информацию о сервисе MX.
+type MXServiceInfo struct {
+	ID         mx.JID `xml:"serviceId" json:"id,string"`
+	Name       string `xml:"serviceName" json:"name"`
+	Type       string `xml:"serviceType" json:"type"`
+	Ext        string `xml:"extension" json:"ext"`
+	HomeSystem mx.JID `xml:"homeSystem" json:"homeSystem,string,omitempty"`
 }

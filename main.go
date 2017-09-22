@@ -82,11 +82,13 @@ func main() {
 	mux.Handle("DELETE", "/auth", proxy.Logout)
 
 	mux.Handle("GET", "/contacts", proxy.Contacts)
+	mux.Handle("GET", "/services", proxy.Services)
 
 	mux.Handle("GET", "/calls", proxy.CallLog)
 	mux.Handle("PATCH", "/calls", proxy.SetMode)
 	mux.Handle("POST", "/calls", proxy.MakeCall)
 	mux.Handle("PUT", "/calls/:id", proxy.SIPAnswer)
+	mux.Handle("POST", "/calls/:id", proxy.Transfer)
 	mux.Handle("PATCH", "/calls/:name", proxy.AssignDevice)
 
 	mux.Handle("GET", "/voicemails", proxy.Voicemails)

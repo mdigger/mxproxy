@@ -544,6 +544,33 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 	return c.Write(rest.JSON{"sipAnswer": params})
 }
 
+// Transfer перенаправляет звонок на другой номер.
+func (p *Proxy) Transfer(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// Params описывает параметры, передаваемые в запроса
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return rest.ErrNotFound
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(struct {
+		CallID int64  `json:"callId" form:"callId"`
+		Device string `json:"device" form:"device"`
+		To     string `json:"to" form:"to"`
+	})
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	if err = conn.Transfer(callID, params.Device, params.To); err != nil {
+		return err
+	}
+	params.CallID = callID
+	return c.Write(rest.JSON{"transfer": params})
+}
+
 // Voicemails отдает список голосовых сообщений пользователя.
 func (p *Proxy) Voicemails(c *rest.Context) error {
 	conn, err := p.getConnection(c)
@@ -691,4 +718,17 @@ func (p *Proxy) Token(c *rest.Context) error {
 	default:
 		return rest.ErrMethodNotAllowed
 	}
+}
+
+// Services возвращает список запущенных на MX сервисов.
+func (p *Proxy) Services(c *rest.Context) error {
+	conn, err := p.getConnection(c)
+	if err != nil {
+		return err
+	}
+	list, err := conn.GetServiceList()
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"services": list})
 }
