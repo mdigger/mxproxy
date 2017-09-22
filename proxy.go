@@ -58,10 +58,10 @@ func InitProxy() (proxy *Proxy, err error) {
 	}{
 		ProvisioningURL: "https://config.connector73.net/config",
 		DBName:          lowerAppName + ".db",
-		// Telegram: Telegram{
-		// 	Token:  "422160011:AAFz-BJhIFQLrdXI2L8BtxgvivDKeY5s2Ig",
-		// 	ChatID: -1001068031302,
-		// },
+		Telegram: Telegram{
+			Token:  "422160011:AAFz-BJhIFQLrdXI2L8BtxgvivDKeY5s2Ig",
+			ChatID: -1001068031302,
+		},
 	}
 	// разбираем конфигурационный файл, если он существует
 	log.Info("loading configuration", "filename", configName)
@@ -80,7 +80,7 @@ func InitProxy() (proxy *Proxy, err error) {
 
 	// инициализируем поддержку отправки ошибок через Telegram
 	if config.Telegram.Token != "" && config.Telegram.ChatID != 0 &&
-		!strings.HasPrefix(host, "localhost") &&
+		// !strings.HasPrefix(host, "localhost") &&
 		!strings.HasPrefix(host, "127.0.0.1") {
 		var tlgrmhdlr = telegram.New(config.Telegram.Token,
 			config.Telegram.ChatID, nil)
