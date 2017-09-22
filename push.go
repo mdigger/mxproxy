@@ -30,16 +30,8 @@ type Push struct {
 // Send отсылает уведомление на все устройства пользователя.
 func (p *Push) Send(login string, obj interface{}) {
 	// запускаем параллельно отсылку пушей
-	go func() {
-		if err := p.sendAPN(login, obj); err != nil {
-			log.WithError(err).Error("send Apple Notification error")
-		}
-	}()
-	go func() {
-		if err := p.sendFCM(login, obj); err != nil {
-			log.WithError(err).Error("send Firebase Cloud Messages error")
-		}
-	}()
+	go log.IfErr(p.sendAPN(login, obj), "send Apple Notification error")
+	go log.IfErr(p.sendFCM(login, obj), "send Firebase Cloud Messages error")
 }
 
 // sendAPN отсылает уведомление на все Apple устройства пользователя.
@@ -56,8 +48,7 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 	default:
 		var err error
 		payload, err = json.Marshal(obj)
-		if err != nil {
-			log.WithError(err).Error("push payload to json error")
+		if log.IfErr(err, "push payload to json error") != nil {
 			return err
 		}
 	}
@@ -85,10 +76,12 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			req.Header.Set("user-agent", agent)
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := client.Do(req)
-			if err != nil {
+			if log.IfErr(err, "apple push send error") != nil {
 				failure++
-				sendMonitorError(err)
-				log.WithError(err).Error("apple push send error")
+				tlgrm.IfErr(err, "apple push send error",
+					"login", login,
+					"topic", topic,
+					"token", token)
 				continue
 			}
 			if resp.StatusCode == http.StatusOK {
@@ -115,17 +108,15 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 				p.store.RemoveToken("apn", topic, token)
 			default:
 			}
-			log.WithFields(log.Fields{
-				"topic":  topic,
-				"token":  token,
-				"reason": apnsError.Reason,
-			}).Debug("apple push error")
+			log.Debug("apple push error",
+				"topic", topic,
+				"token", token,
+				"reason", apnsError.Reason)
 		}
-		log.WithFields(log.Fields{
-			"topic":   topic,
-			"success": success,
-			"failure": failure,
-		}).Info("apple push")
+		log.Info("apple push",
+			"topic", topic,
+			"success", success,
+			"failure", failure)
 	}
 	return nil
 }
@@ -170,7 +161,10 @@ func (p *Push) sendFCM(login string, obj interface{}) error {
 		req.Header.Set("Authorization", "key="+fcmKey)
 		resp, err := fcmClient.Do(req)
 		if err != nil {
-			sendMonitorError(err)
+			tlgrm.IfErr(err, "google push send error",
+				"login", login,
+				"appName", appName,
+				"tokens", tokens)
 			return err
 		}
 		// проверяем статус ответа
@@ -213,11 +207,10 @@ func (p *Push) sendFCM(login string, obj interface{}) error {
 				p.store.RemoveToken("fcm", appName, token)
 			}
 		}
-		log.WithFields(log.Fields{
-			"app":     appName,
-			"success": result.Success,
-			"failure": result.Failure,
-		}).Info("google push")
+		log.Info("google push",
+			"app", appName,
+			"success", result.Success,
+			"failure", result.Failure)
 	}
 	return nil
 }
@@ -296,11 +289,10 @@ func (p *Push) LoadCertificate(filename, password string) error {
 			return errors.New("apns certificate with topics not supported")
 		}
 	}
-	log.WithFields(log.Fields{
-		"file":   filename,
-		"topic":  topicID,
-		"expire": x509Cert.NotAfter.Format("2006-01-02"),
-	}).Info("apple push certificate")
+	log.Info("apple push certificate",
+		"file", filename,
+		"topic", topicID,
+		"expire", x509Cert.NotAfter.Format("2006-01-02"))
 	return nil
 }
 

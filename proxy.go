@@ -14,9 +14,9 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/mdigger/log"
+	"github.com/mdigger/log/telegram"
 	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
-	"github.com/mdigger/telegram"
 )
 
 // Proxy описывает сервис проксирования запросов к серверу MX.
@@ -31,6 +31,9 @@ type Proxy struct {
 	mu              sync.RWMutex
 }
 
+// лог для телеграмма - до инициализации пустышка
+var tlgrm = log.NewLogger(log.Null)
+
 // InitProxy инициализирует и возвращает сервис проксирования запросов к MX.
 func InitProxy() (proxy *Proxy, err error) {
 	// Telegram описывает настройки для чата Telegram
@@ -42,6 +45,7 @@ func InitProxy() (proxy *Proxy, err error) {
 		ProvisioningURL string            `toml:"provisioning"`
 		AppsAuth        map[string]string `toml:"apps"`
 		DBName          string            `toml:"dbName"`
+		LogName         string            `toml:"logName"`
 		VoIP            struct {
 			APN map[string]string `toml:"apn"`
 			FCM map[string]string `toml:"fcm"`
@@ -54,13 +58,13 @@ func InitProxy() (proxy *Proxy, err error) {
 	}{
 		ProvisioningURL: "https://config.connector73.net/config",
 		DBName:          lowerAppName + ".db",
-		Telegram: Telegram{
-			Token:  "422160011:AAFz-BJhIFQLrdXI2L8BtxgvivDKeY5s2Ig",
-			ChatID: -1001068031302,
-		},
+		// Telegram: Telegram{
+		// 	Token:  "422160011:AAFz-BJhIFQLrdXI2L8BtxgvivDKeY5s2Ig",
+		// 	ChatID: -1001068031302,
+		// },
 	}
 	// разбираем конфигурационный файл, если он существует
-	log.WithField("filename", configName).Info("loading configuration")
+	log.Info("loading configuration", "filename", configName)
 	data, err := ioutil.ReadFile(configName)
 	if err != nil {
 		return nil, err
@@ -69,12 +73,24 @@ func InitProxy() (proxy *Proxy, err error) {
 		return nil, err
 	}
 
+	// задаем имя для поиска и отдачи лога приложения
+	if config.LogName != "" {
+		logFile = config.LogName
+	}
+
 	// инициализируем поддержку отправки ошибок через Telegram
 	if config.Telegram.Token != "" && config.Telegram.ChatID != 0 &&
 		!strings.HasPrefix(host, "localhost") &&
 		!strings.HasPrefix(host, "127.0.0.1") {
-		sendMonitor = telegram.NewChatBot(config.Telegram.Token,
-			config.Telegram.ChatID, telegram.TypeMarkdown)
+		var tlgrmhdlr = telegram.New(config.Telegram.Token,
+			config.Telegram.ChatID, nil)
+		tlgrmhdlr.Header = fmt.Sprintf("%s/%s", appName, version)
+		tlgrmhdlr.Footer = fmt.Sprintf("----------------\n"+
+			"Builded: %s\n"+
+			"Git: %s\n"+
+			"Host: %s",
+			date, git, host)
+		tlgrm = log.NewLogger(tlgrmhdlr)
 	}
 
 	// проверяем, что определены идентификаторы приложений для авторизации
@@ -88,8 +104,7 @@ func InitProxy() (proxy *Proxy, err error) {
 		list = append(list, appName)
 	}
 	sort.Strings(list)
-	log.WithField("apps", strings.Join(list, ", ")).
-		Info("registered oauth2 apps")
+	log.Info("registered oauth2 apps", "apps", strings.Join(list, ", "))
 
 	// инициализируем генератор токенов авторизации
 	var tokenTTL = time.Hour
@@ -109,15 +124,11 @@ func InitProxy() (proxy *Proxy, err error) {
 		singKeyTTL = d
 	}
 	var jwtGen = NewJWTGenerator(tokenTTL, singKeyTTL)
-	log.WithFields(log.Fields{
-		"tokenTTL":   tokenTTL,
-		"signKeyTTL": singKeyTTL,
-	}).Info("token generator")
+	log.Info("token generator", "tokenTTL", tokenTTL, "signKeyTTL", singKeyTTL)
 
 	// открываем хранилище
 	store, err := OpenStore(config.DBName)
-	if err != nil {
-		log.WithError(err).Error("store error")
+	if log.IfErr(err, "store error") != nil {
 		return nil, err
 	}
 
@@ -128,14 +139,12 @@ func InitProxy() (proxy *Proxy, err error) {
 		fcm:   config.VoIP.FCM,
 	}
 	for filename, password := range config.VoIP.APN {
-		if err = push.LoadCertificate(filename, password); err != nil {
-			log.WithField("filename", filename).WithError(err).
-				Error("apn certificate error")
-		}
+		log.IfErr(push.LoadCertificate(filename, password),
+			"apn certificate error", "filename", filename)
 	}
 	// выводим список поддерживаемых приложений для Firebase Cloud Messages
 	for appName := range config.VoIP.FCM {
-		log.WithField("app", appName).Info("firebase cloud messaging")
+		log.Info("firebase cloud messaging", "app", appName)
 	}
 	// инициализируем прокси
 	proxy = &Proxy{
@@ -154,8 +163,7 @@ func InitProxy() (proxy *Proxy, err error) {
 			if _, ok := err.(*mx.LoginError); ok {
 				store.RemoveUser(login)
 			}
-			log.WithError(err).WithField("login", login).
-				Error("mx user connection error")
+			log.IfErr(err, "mx user connection error", "login", login)
 		}
 	}
 	return proxy, nil
@@ -188,8 +196,7 @@ func (p *Proxy) isStopped() bool {
 func (p *Proxy) connect(conf *MXConfig, login string) error {
 	conn, err := MXConnect(conf, login)
 	if err != nil {
-		log.WithError(err).Error("mx user connection error")
-		sendMonitorError(err) // отсылаем ошибку
+		log.IfErr(err, "mx user connection error")
 		// в зависимости от типа ошибки возвращаем разный статус
 		var status = http.StatusServiceUnavailable
 		if _, ok := err.(*mx.LoginError); ok {
@@ -200,10 +207,10 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		return rest.NewError(status, err.Error())
 	}
 	p.conns.Store(login, conn) // сохраняем соединение в списке
-	log.WithField("login", login).Info("mx user connected")
+	log.Info("mx user connected", "login", login)
 
 	go func(conn *MXConn, login string) {
-		ctxlog := log.WithField("login", login)
+		ctxlog := log.New(login)
 		ctxlog.Debug("mx user call monitoring")
 		defer ctxlog.Debug("mx user call monitoring end")
 	monitoring:
@@ -216,41 +223,34 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			// фильтруем события о звонках
 			if delivered.CalledDevice != conn.Ext &&
 				delivered.AlertingDevice != conn.Ext {
-				ctxlog.WithField("id", delivered.CallID).Debug("ignore incoming call")
+				ctxlog.Debug("ignore incoming call", "id", delivered.CallID)
 				return nil
 			}
 			delivered.Timestamp = time.Now().Unix()
 			p.push.Send(conn.Login, delivered) // отсылаем уведомление
-			ctxlog.WithField("id", delivered.CallID).Info("incoming call")
+			ctxlog.Info("incoming call", "id", delivered.CallID)
 			return nil
 		}, "DeliveredEvent")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
 		}
-		if err != nil {
-			log.WithError(err).Error("monitoring error")
-		}
+		ctxlog.IfErr(err, "monitoring error")
 		// ждем окончания
-		if err := <-conn.Done(); err != nil {
-			ctxlog.WithError(err).Error("mx user connection error")
-		}
+		ctxlog.IfErr(<-conn.Done(), "mx user connection error")
 		p.conns.Delete(login) // удаляем из списка соединений
 	reconnect:
 		conf, err = p.store.GetUser(login) // получаем конфигурацию
-		if err != nil {
-			ctxlog.WithError(err).Error("mx user config error")
+		if ctxlog.IfErr(err, "mx user config error") != nil {
 			return
 		}
-		ctxlog.WithField("delay", time.Minute).Debug("mx user reconnecting")
+		ctxlog.Debug("mx user reconnecting", "delay", time.Minute)
 		time.Sleep(time.Minute) // задержка перед переподключением
 		if p.isStopped() {
 			return // сервис остановлен
 		}
 		conn, err = MXConnect(conf, login)
-		if err != nil {
-			ctxlog.WithError(err).Error("mx user connection error")
-			sendMonitorError(err) // отсылаем ошибку
+		if log.IfErr(err, "mx user connection error") != nil {
 			// в случае ошибки авторизации удаляем пользователя
 			if _, ok := err.(*mx.LoginError); ok {
 				p.store.RemoveUser(login)

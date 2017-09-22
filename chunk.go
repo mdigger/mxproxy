@@ -92,7 +92,7 @@ func (c *Chunks) Chunks() <-chan []byte {
 			case c.chunks <- data: // отсылаем данные клиенту
 				ctxlog.WithField("chunk",
 					fmt.Sprintf("%02d/%02d", chunk.Number, chunk.Total)).
-					Debug("voicemail chunk")
+					Trace("voicemail chunk")
 				if chunk.Number >= c.Total {
 					break loop // получили все куски данных
 				}

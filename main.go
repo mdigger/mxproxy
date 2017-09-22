@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ var (
 	lowerAppName = strings.ToLower(appName)
 	host         = lowerAppName + ".connector73.net" // имя сервера
 	configName   = lowerAppName + ".toml"            // имя файла с хранилищем токенов
-	debug        = false                             // флаг вывода отладочной информации
+	logFile      = filepath.Join("/var/log", lowerAppName+".log")
 )
 
 func init() {
@@ -42,7 +43,9 @@ func init() {
 	flag.Parse()
 
 	log.SetLevel(log.Level(logLevel))
-	debug = logLevel < 0
+	if strings.Contains(os.Getenv("LOG"), "DEBUG") && log.IsTTY() {
+		log.SetFormat(log.Color)
+	}
 	// выводим информацию о текущей версии
 	var verInfoFields = log.Fields{
 		"name":    appName,
@@ -56,13 +59,13 @@ func init() {
 		agent += " (" + git + ")"
 	}
 	log.WithFields(verInfoFields).Info("service info")
+	log.WithField("level", log.Level(logLevel)).Info("log")
 }
 
 func main() {
 	// инициализируем сервис
 	proxy, err := InitProxy()
-	if err != nil {
-		log.WithError(err).Error("initializing proxy error")
+	if log.IfErr(err, "initializing proxy error") != nil {
 		os.Exit(2)
 	}
 	defer proxy.Close()
@@ -94,64 +97,71 @@ func main() {
 	mux.Handle("PUT", "/tokens/:type/:topic/:token", proxy.Token)
 	mux.Handle("DELETE", "/tokens/:type/:topic/:token", proxy.Token)
 
-	if debug {
-		mux.Handles(rest.Paths{
-			// отдает список запущенных соединений
-			"/debug/connections": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					var list []string
-					proxy.conns.Range(func(login, _ interface{}) bool {
-						list = append(list, login.(string))
-						return true
-					})
-					sort.Strings(list)
-					return c.Write(rest.JSON{"connections": list})
-				},
+	mux.Handles(rest.Paths{
+		// отдает список запущенных соединений
+		"/debug/connections": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				var list []string
+				proxy.conns.Range(func(login, _ interface{}) bool {
+					list = append(list, login.(string))
+					return true
+				})
+				sort.Strings(list)
+				return c.Write(rest.JSON{"connections": list})
 			},
-			// список зарегистрированных приложений для авторизации OAuth2
-			"/debug/apps": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					var list = make(map[string]string, len(proxy.appsAuth))
-					for appName, secret := range proxy.appsAuth {
-						list[appName] = secret
-					}
-					return c.Write(rest.JSON{"apps": list})
-				},
+		},
+		// список зарегистрированных приложений для авторизации OAuth2
+		"/debug/apps": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				var list = make(map[string]string, len(proxy.appsAuth))
+				for appName, secret := range proxy.appsAuth {
+					list[appName] = secret
+				}
+				return c.Write(rest.JSON{"apps": list})
 			},
-			// список зарегистрированных пользователей
-			"/debug/users": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					return c.Write(
-						rest.JSON{"users": proxy.store.section(bucketUsers)})
-				},
+		},
+		// список зарегистрированных пользователей
+		"/debug/users": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				return c.Write(
+					rest.JSON{"users": proxy.store.section(bucketUsers)})
 			},
-			// список зарегистрированных токенов устройств
-			"/debug/tokens": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					return c.Write(
-						rest.JSON{"tokens": proxy.store.section(bucketTokens)})
-				},
+		},
+		// список зарегистрированных токенов устройств
+		"/debug/tokens": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				return c.Write(
+					rest.JSON{"tokens": proxy.store.section(bucketTokens)})
 			},
-		}, func(c *rest.Context) error {
-			// проверяем авторизацию при обращении к данным
-			clientID, secret, ok := c.BasicAuth()
-			if !ok {
-				c.SetHeader("WWW-Authenticate",
-					fmt.Sprintf("Basic realm=%q", appName+" client application"))
-				return rest.ErrUnauthorized
-			}
-			if appSecret, ok := proxy.appsAuth[clientID]; !ok || appSecret != secret {
-				return rest.ErrForbidden
-			}
-			c.AddLogField("app", clientID)
-			return nil
-		})
-	}
+		},
+		"/debug/log": rest.Methods{
+			"GET": rest.File(logFile),
+		},
+	}, func(c *rest.Context) error {
+		// проверяем авторизацию при обращении к данным
+		clientID, secret, ok := c.BasicAuth()
+		if !ok {
+			c.SetHeader("WWW-Authenticate",
+				fmt.Sprintf("Basic realm=%q", appName+" client application"))
+			return rest.ErrUnauthorized
+		}
+		if appSecret, ok := proxy.appsAuth[clientID]; !ok || appSecret != secret {
+			return rest.ErrForbidden
+		}
+		c.AddLogField("app", clientID)
+		return nil
+	})
+	startHTTPServer(mux, host) // запускаем HTTP сервер
 
-	sendMonitorText("service started")
-	defer sendMonitorText("service stopped")
-	startHTTPServer(mux, host)            // запускаем HTTP сервер
+	tlgrm.Info("service started")
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatal("panic", "err", r)
+			tlgrm.Fatal("panic", "err", r)
+		}
+	}()
 	monitorSignals(os.Interrupt, os.Kill) // ожидаем сигнала остановки
+	tlgrm.Info("service stopped")
 }
 
 // monitorSignals запускает мониторинг сигналов и возвращает значение, когда
@@ -170,7 +180,7 @@ func startHTTPServer(mux http.Handler, host string) {
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Minute * 5,
-		ErrorLog:     log.StdLog(log.WARN, "http"),
+		ErrorLog:     log.StdLogger(log.WARN, "http"),
 	}
 	// анализируем порт
 	var httphost, port, err = net.SplitHostPort(host)
@@ -190,7 +200,7 @@ func startHTTPServer(mux http.Handler, host string) {
 			Prompt: autocert.AcceptTOS,
 			HostPolicy: func(_ context.Context, host string) error {
 				if host != httphost {
-					log.WithField("host", host).Error("unsupported https host")
+					log.Error("unsupported https host", "host", host)
 					return errors.New("acme/autocert: host not configured")
 				}
 				return nil
@@ -209,20 +219,17 @@ func startHTTPServer(mux http.Handler, host string) {
 	}
 	// запускаем HTTP сервер
 	go func() {
-		log.WithFields(log.Fields{
-			"address": server.Addr,
-			"tls":     canCert,
-			"host":    httphost,
-		}).Info("starting http server")
+		log.Info("starting http server",
+			"address", server.Addr, "tls", canCert, "host", httphost)
 		var err error
 		if canCert {
 			err = server.ListenAndServeTLS("", "")
 		} else {
 			err = server.ListenAndServe()
 		}
-		if err != nil {
-			log.WithError(err).Error("http server stopped")
-			sendMonitorError(err)
+		if log.IfErr(err, "http server stopped") != nil {
+			tlgrm.IfErr(err, "http server error",
+				"address", server.Addr, "tls", canCert, "host", httphost)
 			os.Exit(2)
 		}
 	}()
