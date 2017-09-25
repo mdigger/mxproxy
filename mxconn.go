@@ -254,8 +254,8 @@ func (c *MXConn) AssignDevice(name string) error {
 	return err
 }
 
-// SetMode устанавливает режим звонка.
-func (c *MXConn) SetMode(remote bool, deviceID string, ringDelay, vmDelay uint16) error {
+// SetCallMode устанавливает режим звонка.
+func (c *MXConn) SetCallMode(remote bool, deviceID string, ringDelay, vmDelay uint16) error {
 	var mode = "local"
 	if remote {
 		mode = "remote"
@@ -346,7 +346,7 @@ func (c *MXConn) SIPAnswer(callID int64, deviceID string, timeout time.Duration)
 	return err
 }
 
-// Transfer подтверждает прием звонка по SIP.
+// Transfer перенаправляет звонок на другой номер.
 func (c *MXConn) Transfer(callID int64, deviceID, to string) error {
 	// теперь отправляем команду на подтверждение звонка
 	_, err := c.SendWithResponse(&struct {

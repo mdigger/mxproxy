@@ -80,7 +80,7 @@ func InitProxy() (proxy *Proxy, err error) {
 
 	// инициализируем поддержку отправки ошибок через Telegram
 	if config.Telegram.Token != "" && config.Telegram.ChatID != 0 &&
-		// !strings.HasPrefix(host, "localhost") &&
+		!strings.HasPrefix(host, "localhost") &&
 		!strings.HasPrefix(host, "127.0.0.1") {
 		var tlgrmhdlr = telegram.New(config.Telegram.Token,
 			config.Telegram.ChatID, nil)
@@ -468,7 +468,7 @@ func (p *Proxy) SetMode(c *rest.Context) error {
 	}
 	c.AddLogField("remote", params.Remote)
 	c.AddLogField("device", params.Device)
-	if err = conn.SetMode(params.Remote, params.Device,
+	if err = conn.SetCallMode(params.Remote, params.Device,
 		params.RingDelay, params.VMDelay); err != nil {
 		return err
 	}
