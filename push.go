@@ -30,8 +30,16 @@ type Push struct {
 // Send отсылает уведомление на все устройства пользователя.
 func (p *Push) Send(login string, obj interface{}) {
 	// запускаем параллельно отсылку пушей
-	go log.IfErr(p.sendAPN(login, obj), "send Apple Notification error")
-	go log.IfErr(p.sendFCM(login, obj), "send Firebase Cloud Messages error")
+	go func() {
+		if err := p.sendAPN(login, obj); err != nil {
+			log.Error("send Apple Notification error", "error", err)
+		}
+	}()
+	go func() {
+		if err := p.sendFCM(login, obj); err != nil {
+			log.Error("send Firebase Cloud Messages error", "error", err)
+		}
+	}()
 }
 
 // sendAPN отсылает уведомление на все Apple устройства пользователя.
@@ -48,7 +56,8 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 	default:
 		var err error
 		payload, err = json.Marshal(obj)
-		if log.IfErr(err, "push payload to json error") != nil {
+		if err != nil {
+			log.Error("push payload to json error", err)
 			return err
 		}
 	}
@@ -76,9 +85,10 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			req.Header.Set("user-agent", agent)
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := client.Do(req)
-			if log.IfErr(err, "apple push send error") != nil {
+			if err != nil {
+				log.Error("apple push send error", err)
 				failure++
-				tlgrm.IfErr(err, "apple push send error",
+				tlgrm.Error("apple push send error", err,
 					"login", login,
 					"topic", topic,
 					"token", token)
@@ -161,7 +171,7 @@ func (p *Push) sendFCM(login string, obj interface{}) error {
 		req.Header.Set("Authorization", "key="+fcmKey)
 		resp, err := fcmClient.Do(req)
 		if err != nil {
-			tlgrm.IfErr(err, "google push send error",
+			tlgrm.Error("google push send error", err,
 				"login", login,
 				"appName", appName,
 				"tokens", tokens)

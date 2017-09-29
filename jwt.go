@@ -44,8 +44,7 @@ func NewJWTGenerator(tokenTTL, signKeyTTL time.Duration) *JWTGenerator {
 		jwtConfig.old.Range(func(k, _ interface{}) bool {
 			if k.(string) < now {
 				jwtConfig.old.Delete(k)
-				log.WithField("id", k.(string)).
-					Debug("removed old token sign key")
+				log.Debug("removed old token sign key", "id", k.(string))
 			}
 			return true
 		})
@@ -96,7 +95,7 @@ func (j *JWTGenerator) getCurrentKey() (string, interface{}) {
 		j.id = id
 		j.mu.Unlock()
 		j.old.Store(id, key) // сохраняем в архиве
-		log.WithField("id", id).Debug("generated new token sign key")
+		log.Debug("generated new token sign key", "id", id)
 	}
 	return id, key
 }

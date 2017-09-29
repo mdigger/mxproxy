@@ -32,7 +32,7 @@ type Proxy struct {
 }
 
 // лог для телеграмма - до инициализации пустышка
-var tlgrm = log.NewLogger(log.Null)
+var tlgrm = log.NewLogger(log.NewWriter(nil, 127, nil))
 
 // InitProxy инициализирует и возвращает сервис проксирования запросов к MX.
 func InitProxy() (proxy *Proxy, err error) {
@@ -128,7 +128,8 @@ func InitProxy() (proxy *Proxy, err error) {
 
 	// открываем хранилище
 	store, err := OpenStore(config.DBName)
-	if log.IfErr(err, "store error") != nil {
+	if err != nil {
+		log.Error("store error", "error", err)
 		return nil, err
 	}
 
@@ -139,8 +140,9 @@ func InitProxy() (proxy *Proxy, err error) {
 		fcm:   config.VoIP.FCM,
 	}
 	for filename, password := range config.VoIP.APN {
-		log.IfErr(push.LoadCertificate(filename, password),
-			"apn certificate error", "filename", filename)
+		if err := push.LoadCertificate(filename, password); err != nil {
+			log.Error("apn certificate error", "filename", filename, "error", err)
+		}
 	}
 	// выводим список поддерживаемых приложений для Firebase Cloud Messages
 	for appName := range config.VoIP.FCM {
@@ -163,7 +165,7 @@ func InitProxy() (proxy *Proxy, err error) {
 			if _, ok := err.(*mx.LoginError); ok {
 				store.RemoveUser(login)
 			}
-			log.IfErr(err, "mx user connection error", "login", login)
+			log.Error("mx user connection error", "login", login, "error", err)
 		}
 	}
 	return proxy, nil
@@ -196,7 +198,7 @@ func (p *Proxy) isStopped() bool {
 func (p *Proxy) connect(conf *MXConfig, login string) error {
 	conn, err := MXConnect(conf, login)
 	if err != nil {
-		log.IfErr(err, "mx user connection error")
+		log.Error("mx user connection error", "error", err)
 		// в зависимости от типа ошибки возвращаем разный статус
 		var status = http.StatusServiceUnavailable
 		if _, ok := err.(*mx.LoginError); ok {
@@ -235,13 +237,18 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
 		}
-		ctxlog.IfErr(err, "monitoring error")
+		if err != nil {
+			ctxlog.Error("monitoring error", "error", err)
+		}
 		// ждем окончания
-		ctxlog.IfErr(<-conn.Done(), "mx user connection error")
+		if err = <-conn.Done(); err != nil {
+			ctxlog.Error("mx user connection error", "error", err)
+		}
 		p.conns.Delete(login) // удаляем из списка соединений
 	reconnect:
 		conf, err = p.store.GetUser(login) // получаем конфигурацию
-		if ctxlog.IfErr(err, "mx user config error") != nil {
+		if err != nil {
+			ctxlog.Error("mx user config error", "error", err)
 			return
 		}
 		ctxlog.Debug("mx user reconnecting", "delay", time.Minute)
@@ -250,7 +257,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			return // сервис остановлен
 		}
 		conn, err = MXConnect(conf, login)
-		if log.IfErr(err, "mx user connection error") != nil {
+		if err != nil {
+			log.Error("mx user connection error", "error", err)
 			// в случае ошибки авторизации удаляем пользователя
 			if _, ok := err.(*mx.LoginError); ok {
 				p.store.RemoveUser(login)
@@ -354,7 +362,7 @@ func (p *Proxy) Logout(c *rest.Context) error {
 	if err = p.store.RemoveUser(login); err != nil {
 		return err
 	}
-	log.WithField("login", login).Info("mx user disconnected")
+	log.Info("mx user disconnected", "login", login)
 	return c.Write(rest.JSON{"userLogout": login})
 }
 
@@ -669,9 +677,11 @@ func (p *Proxy) GetVoiceMailFile(c *rest.Context) error {
 			vminfo.Cancel()                  // отменяем загрузку данных
 			return c.Request.Context().Err() // возвращаем ошибку
 		default: // отдаем кусочек данных пользователю
+			// log.Warn("chuck destination", "len", len(data), "chunk", data)
 			if err = c.Write(data); err != nil {
 				return err
 			}
+			// c.Write([]byte("\n\n-----\n\n"))
 		}
 	}
 	return vminfo.Err() // все данные благополучно отосланы

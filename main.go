@@ -38,34 +38,32 @@ func init() {
 	// инициализируем разбор параметров запуска сервиса
 	flag.StringVar(&host, "host", host, "main server `host name`")
 	flag.StringVar(&configName, "config", configName, "configuration `filename`")
-	var logLevel = int(log.TRACE)
-	flag.IntVar(&logLevel, "log", logLevel, "log `level`")
+	flag.Var(log.Flag(), "log", "log `level`")
 	flag.Parse()
 
-	log.SetLevel(log.Level(logLevel))
-	if strings.Contains(os.Getenv("LOG"), "DEBUG") && log.IsTTY() {
-		log.SetFormat(log.Color)
-	}
 	// выводим информацию о текущей версии
-	var verInfoFields = log.Fields{
-		"name":    appName,
-		"version": version,
-	}
+	var verInfoFields = log.With(
+		"name", appName,
+		"version", version)
 	if date != "" {
-		verInfoFields["builded"] = date
+		verInfoFields = verInfoFields.With("builded", date)
 	}
 	if git != "" {
-		verInfoFields["git"] = git
+		verInfoFields = verInfoFields.With("git", git)
 		agent += " (" + git + ")"
 	}
-	log.WithFields(verInfoFields).Info("service info")
-	log.WithField("level", log.Level(logLevel)).Info("log")
+	if host, err := os.Hostname(); err == nil {
+		verInfoFields = verInfoFields.With("host", host)
+	}
+	verInfoFields.Info("service info")
+	log.Info("log", "level", log.Flag().String())
 }
 
 func main() {
 	// инициализируем сервис
 	proxy, err := InitProxy()
-	if log.IfErr(err, "initializing proxy error") != nil {
+	if err != nil {
+		log.Error("initializing proxy error", "error", err)
 		os.Exit(2)
 	}
 	defer proxy.Close()
@@ -182,7 +180,7 @@ func startHTTPServer(mux http.Handler, host string) {
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Minute * 5,
-		ErrorLog:     log.StdLogger(log.WARN, "http"),
+		ErrorLog:     log.StdLog(log.WARN, "http"),
 	}
 	// анализируем порт
 	var httphost, port, err = net.SplitHostPort(host)
@@ -229,8 +227,9 @@ func startHTTPServer(mux http.Handler, host string) {
 		} else {
 			err = server.ListenAndServe()
 		}
-		if log.IfErr(err, "http server stopped") != nil {
-			tlgrm.IfErr(err, "http server error",
+		if err != nil {
+			log.Error("http server stopped", "error", err)
+			tlgrm.Error("http server error", "error", err,
 				"address", server.Addr, "tls", canCert, "host", httphost)
 			os.Exit(2)
 		}
