@@ -59,7 +59,7 @@ func (c *Chunks) Cancel() (err error) {
 func (c *Chunks) Chunks() <-chan []byte {
 	// запускаем процедуру запросов и чтения ответов от сервера.
 	go func() {
-		ctxlog := log.WithField("id", c.ID)
+		ctxlog := log.With("id", c.ID)
 		var err error
 	loop:
 		for {
@@ -83,16 +83,16 @@ func (c *Chunks) Chunks() <-chan []byte {
 			// декодируем содержимое
 			var data = make([]byte, base64.StdEncoding.DecodedLen(
 				len(chunk.MediaContent)))
-			_, err = base64.StdEncoding.Decode(data, chunk.MediaContent)
+			n, err := base64.StdEncoding.Decode(data, chunk.MediaContent)
 			if err != nil {
 				break
 			}
+			// log.Warn("chuck source", "len", len(data), "chunk", data)
 			// проверяем, что получение данных не отменено
 			select {
-			case c.chunks <- data: // отсылаем данные клиенту
-				ctxlog.WithField("chunk",
-					fmt.Sprintf("%02d/%02d", chunk.Number, chunk.Total)).
-					Trace("voicemail chunk")
+			case c.chunks <- data[:n]: // отсылаем данные клиенту
+				ctxlog.Trace("voicemail chunk", "chunk",
+					fmt.Sprintf("%02d/%02d", chunk.Number, chunk.Total))
 				if chunk.Number >= c.Total {
 					break loop // получили все куски данных
 				}
