@@ -153,15 +153,7 @@ func main() {
 	})
 	startHTTPServer(mux, host) // запускаем HTTP сервер
 
-	tlgrm.Info("service started")
-	defer func() {
-		if r := recover(); r != nil {
-			log.Fatal("panic", "err", r)
-			tlgrm.Fatal("panic", "err", r)
-		}
-	}()
 	monitorSignals(os.Interrupt, os.Kill) // ожидаем сигнала остановки
-	tlgrm.Info("service stopped")
 }
 
 // monitorSignals запускает мониторинг сигналов и возвращает значение, когда
@@ -229,8 +221,6 @@ func startHTTPServer(mux http.Handler, host string) {
 		}
 		if err != nil {
 			log.Error("http server stopped", "error", err)
-			tlgrm.Error("http server error", "error", err,
-				"address", server.Addr, "tls", canCert, "host", httphost)
 			os.Exit(2)
 		}
 	}()

@@ -88,10 +88,6 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			if err != nil {
 				log.Error("apple push send error", err)
 				failure++
-				tlgrm.Error("apple push send error", err,
-					"login", login,
-					"topic", topic,
-					"token", token)
 				continue
 			}
 			if resp.StatusCode == http.StatusOK {
@@ -171,10 +167,6 @@ func (p *Push) sendFCM(login string, obj interface{}) error {
 		req.Header.Set("Authorization", "key="+fcmKey)
 		resp, err := fcmClient.Do(req)
 		if err != nil {
-			tlgrm.Error("google push send error", err,
-				"login", login,
-				"appName", appName,
-				"tokens", tokens)
 			return err
 		}
 		// проверяем статус ответа

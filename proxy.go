@@ -14,7 +14,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/mdigger/log"
-	"github.com/mdigger/log/telegram"
 	"github.com/mdigger/mx"
 	"github.com/mdigger/rest"
 )
@@ -30,9 +29,6 @@ type Proxy struct {
 	stopped         bool              // флаг остановки сервиса
 	mu              sync.RWMutex
 }
-
-// лог для телеграмма - до инициализации пустышка
-var tlgrm = log.NewLogger(log.NewWriter(nil, 127, nil))
 
 // InitProxy инициализирует и возвращает сервис проксирования запросов к MX.
 func InitProxy() (proxy *Proxy, err error) {
@@ -54,14 +50,9 @@ func InitProxy() (proxy *Proxy, err error) {
 			TokenTTL   string `toml:"tokenTTL"`   // время жизни токена
 			SingKeyTTL string `toml:"signKeyTTL"` // время жизни ключа
 		} `toml:"jwt"`
-		Telegram Telegram `toml:"telegram"`
 	}{
 		ProvisioningURL: "https://config.connector73.net/config",
 		DBName:          lowerAppName + ".db",
-		Telegram: Telegram{
-			Token:  "422160011:AAFz-BJhIFQLrdXI2L8BtxgvivDKeY5s2Ig",
-			ChatID: -1001068031302,
-		},
 	}
 	// разбираем конфигурационный файл, если он существует
 	log.Info("loading configuration", "filename", configName)
@@ -76,21 +67,6 @@ func InitProxy() (proxy *Proxy, err error) {
 	// задаем имя для поиска и отдачи лога приложения
 	if config.LogName != "" {
 		logFile = config.LogName
-	}
-
-	// инициализируем поддержку отправки ошибок через Telegram
-	if config.Telegram.Token != "" && config.Telegram.ChatID != 0 &&
-		!strings.HasPrefix(host, "localhost") &&
-		!strings.HasPrefix(host, "127.0.0.1") {
-		var tlgrmhdlr = telegram.New(config.Telegram.Token,
-			config.Telegram.ChatID, nil)
-		tlgrmhdlr.Header = fmt.Sprintf("%s/%s", appName, version)
-		tlgrmhdlr.Footer = fmt.Sprintf("----------------\n"+
-			"Builded: %s\n"+
-			"Git: %s\n"+
-			"Host: %s",
-			date, git, host)
-		tlgrm = log.NewLogger(tlgrmhdlr)
 	}
 
 	// проверяем, что определены идентификаторы приложений для авторизации
