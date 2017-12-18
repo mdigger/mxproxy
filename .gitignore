@@ -8,3 +8,4 @@ debug
 *.log
 *.toml
 *.wav
+.DS_Store
