@@ -29,9 +29,10 @@ var (
 
 	agent        = fmt.Sprintf("%s/%s", appName, version)
 	lowerAppName = strings.ToLower(appName)
-	host         = lowerAppName + ".connector73.net" // имя сервера
-	configName   = lowerAppName + ".toml"            // имя файла с хранилищем токенов
-	logFile      = filepath.Join("/var/log", lowerAppName+".log")
+	// host         = lowerAppName + ".connector73.net" // имя сервера
+	host       = "localhost:8080"
+	configName = lowerAppName + ".toml" // имя файла с хранилищем токенов
+	logFile    = filepath.Join("/var/log", lowerAppName+".log")
 )
 
 func init() {
