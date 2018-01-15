@@ -32,11 +32,6 @@ type Proxy struct {
 
 // InitProxy инициализирует и возвращает сервис проксирования запросов к MX.
 func InitProxy() (proxy *Proxy, err error) {
-	// Telegram описывает настройки для чата Telegram
-	type Telegram struct {
-		Token  string `toml:"token"`  // токен для Telegram
-		ChatID int64  `toml:"chatID"` // идентификатор чата
-	}
 	var config = &struct {
 		ProvisioningURL string            `toml:"provisioning"`
 		AppsAuth        map[string]string `toml:"apps"`
@@ -192,23 +187,34 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		ctxlog.Debug("mx user call monitoring")
 		defer ctxlog.Debug("mx user call monitoring end")
 	monitoring:
-		// запускаем мониторинг входящих звонков
+		// запускаем мониторинг входящих звонков и голосовых сообщений
 		err := conn.Handle(func(resp *mx.Response) error {
-			var delivered = new(DeliveredEvent)
-			if err := resp.Decode(delivered); err != nil {
-				return err
+			switch resp.Name {
+			case "DeliveredEvent": // входящий звонок
+				var delivered = new(DeliveredEvent)
+				if err := resp.Decode(delivered); err != nil {
+					return err
+				}
+				// фильтруем события о звонках
+				if delivered.CalledDevice != conn.Ext &&
+					delivered.AlertingDevice != conn.Ext {
+					ctxlog.Debug("ignore incoming call", "id", delivered.CallID)
+					return nil
+				}
+				delivered.Timestamp = time.Now().Unix()
+				p.push.Send(conn.Login, delivered) // отсылаем уведомление
+				ctxlog.Info("incoming call", "id", delivered.CallID)
+			case "MailIncomingReadyEvent": // новое голосовое сообщение
+				var vmail = new(MailIncomingReadyEvent)
+				if err := resp.Decode(vmail); err != nil {
+					return err
+				}
+				vmail.Timestamp = time.Now().Unix()
+				p.push.Send(conn.Login, vmail) // отсылаем уведомление
+				ctxlog.Info("new voice mail", "id", vmail.MailID)
 			}
-			// фильтруем события о звонках
-			if delivered.CalledDevice != conn.Ext &&
-				delivered.AlertingDevice != conn.Ext {
-				ctxlog.Debug("ignore incoming call", "id", delivered.CallID)
-				return nil
-			}
-			delivered.Timestamp = time.Now().Unix()
-			p.push.Send(conn.Login, delivered) // отсылаем уведомление
-			ctxlog.Info("incoming call", "id", delivered.CallID)
 			return nil
-		}, "DeliveredEvent")
+		}, "DeliveredEvent", "MailIncomingReadyEvent")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
@@ -222,7 +228,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		}
 		p.conns.Delete(login) // удаляем из списка соединений
 	reconnect:
-		conf, err = p.store.GetUser(login) // получаем конфигурацию
+		conf, err = p.store.GetUser(login) // получаем конфигураию
 		if err != nil {
 			ctxlog.Error("mx user config error", "error", err)
 			return
@@ -264,6 +270,28 @@ type DeliveredEvent struct {
 	Cause                 string `xml:"cause" json:"cause"`
 	CallTypeFlags         int64  `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
 	Timestamp             int64  `xml:"-" json:"timestamp"`
+}
+
+// MailIncomingReadyEvent описывает структуру о новом голосовом сообщении
+type MailIncomingReadyEvent struct {
+	From              string `xml:"from,attr" json:"from"`
+	FromName          string `xml:"fromName,attr" json:"fromName"`
+	CallerName        string `xml:"callerName,attr" json:"callerName"`
+	To                string `xml:"to,attr" json:"to"`
+	Private           rune   `xml:"private,attr" json:"private"`
+	Urgent            rune   `xml:"urgent,attr" json:"urgent"`
+	OwnerID           int64  `xml:"ownerId" json:"ownerId"`
+	OwnerType         string `xml:"ownerType,attr" json:"ownerType"`
+	MonitorCrossRefID int64  `xml:"monitorCrossRefID" json:"-"`
+	MailID            string `xml:"mailId" json:"mailId"`
+	MediaType         string `xml:"mediaType" json:"mediaType"`
+	GlobalCallID      string `xml:"gcid" json:"gcid"`
+	Received          int64  `xml:"received" json:"received"`
+	Duration          uint16 `xml:"Duration" json:"Duration"`
+	Read              bool   `xml:"read" json:"read"`
+	FileFormat        string `xml:"fileFormat" json:"fileFormat"`
+	Note              string `xml:"note" json:"note,omitempty"`
+	Timestamp         int64  `xml:"-" json:"timestamp"`
 }
 
 // Login проверяет авторизацию и возвращает авторизационный токен. Если
