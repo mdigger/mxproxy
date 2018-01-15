@@ -53,10 +53,12 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 	}
 	// отправляем команду на запуск монитора
 	resp, err := conn.SendWithResponse(&struct {
-		XMLName xml.Name `xml:"MonitorStart"`
-		Ext     string   `xml:"monitorObject>deviceObject"`
+		XMLName    xml.Name `xml:"MonitorStart"`
+		Ext        string   `xml:"monitorObject>deviceObject"`
+		ConfEvents bool     `xml:"confEvents"`
 	}{
-		Ext: conn.Ext,
+		Ext:        conn.Ext,
+		ConfEvents: true,
 	})
 	if err != nil {
 		return nil, err
@@ -439,7 +441,7 @@ func (c *MXConn) VoiceMailSetNote(id string, note string) error {
 	return err
 }
 
-// VoiceMailFile отдает содержимое файла с голосовым сообщением.
+// VoiceMailFile отдает сод��ржимое файла с голосовым сообщением.
 func (c *MXConn) VoiceMailFile(id string) (*Chunks, error) {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	resp, err := c.SendWithResponse(&struct {
