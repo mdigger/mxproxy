@@ -53,12 +53,12 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 	}
 	// отправляем команду на запуск монитора
 	resp, err := conn.SendWithResponse(&struct {
-		XMLName    xml.Name `xml:"MonitorStart"`
-		Ext        string   `xml:"monitorObject>deviceObject"`
-		ConfEvents bool     `xml:"confEvents"`
+		XMLName xml.Name `xml:"MonitorStart"`
+		Ext     string   `xml:"monitorObject>deviceObject"`
+		// ConfEvents bool     `xml:"confEvents"`
 	}{
-		Ext:        conn.Ext,
-		ConfEvents: true,
+		Ext: conn.Ext,
+		// ConfEvents: true,
 	})
 	if err != nil {
 		return nil, err
