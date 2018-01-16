@@ -278,8 +278,8 @@ type MailIncomingReadyEvent struct {
 	FromName          string `xml:"fromName,attr" json:"fromName"`
 	CallerName        string `xml:"callerName,attr" json:"callerName"`
 	To                string `xml:"to,attr" json:"to"`
-	Private           rune   `xml:"private,attr" json:"private"`
-	Urgent            rune   `xml:"urgent,attr" json:"urgent"`
+	Private           string `xml:"private,attr" json:"private"`
+	Urgent            string `xml:"urgent,attr" json:"urgent"`
 	OwnerID           int64  `xml:"ownerId" json:"ownerId"`
 	OwnerType         string `xml:"ownerType,attr" json:"ownerType"`
 	MonitorCrossRefID int64  `xml:"monitorCrossRefID" json:"-"`
