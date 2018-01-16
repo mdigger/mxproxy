@@ -32,7 +32,7 @@ build: info
 	go build -race -o $(appname) $(FLAGS)
 
 debug: build
-	LOG=DEBUG ./$(appname) -host localhost:8000 -log=-128
+	LOG=TRACE ./$(appname) -host localhost:8000
 
 clean:
 	rm -rf build/
