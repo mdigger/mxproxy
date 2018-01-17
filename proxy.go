@@ -187,7 +187,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		ctxlog.Debug("mx user call monitoring")
 		defer ctxlog.Debug("mx user call monitoring end")
 	monitoring:
-		// запускаем мониторинг входящих звонков и голосовых сообщений
+		// запускаем мониторинг звонков и голосовых сообщений
 		err := conn.Handle(func(resp *mx.Response) error {
 			switch resp.Name {
 			case "DeliveredEvent": // входящий звонок
@@ -202,6 +202,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 					return nil
 				}
 				delivered.Timestamp = time.Now().Unix()
+				delivered.Type = "Delivered"
 				p.push.Send(conn.Login, delivered) // отсылаем уведомление
 				ctxlog.Info("incoming call", "id", delivered.CallID)
 			case "MailIncomingReadyEvent": // новое голосовое сообщение
@@ -215,6 +216,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 					return nil
 				}
 				vmail.Timestamp = time.Now().Unix()
+				vmail.Type = "MailIncoming"
 				p.push.Send(conn.Login, vmail) // отсылаем уведомление
 				ctxlog.Info("new voice mail", "id", vmail.MailID)
 			}
@@ -263,6 +265,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 
 // DeliveredEvent описывает структуру события входящего звонка
 type DeliveredEvent struct {
+	Type                  string `xml:"-" json:"type"`
 	MonitorCrossRefID     int64  `xml:"monitorCrossRefID" json:"-"`
 	CallID                int64  `xml:"connection>callID" json:"callId"`
 	DeviceID              string `xml:"connection>deviceID" json:"deviceId"`
@@ -279,6 +282,7 @@ type DeliveredEvent struct {
 
 // EstablishedEvent описывает событие о состоявшемся звонке.
 type EstablishedEvent struct {
+	Type                  string `xml:"-" json:"type"`
 	CallID                int64  `xml:"establishedConnection>callID" json:"callId"`
 	DeviceID              string `xml:"establishedConnection>deviceID" json:"deviceId"`
 	GlobalCallID          string `xml:"establishedConnection>globalCallID" json:"globalCallId"`
@@ -300,6 +304,7 @@ type EstablishedEvent struct {
 
 // ConnectionClearedEvent описывает событие о завершенном звонке.
 type ConnectionClearedEvent struct {
+	Type            string `xml:"-" json:"type"`
 	CallID          int64  `xml:"droppedConnection>callID" json:"callId"`
 	DeviceID        string `xml:"droppedConnection>deviceID" json:"deviceId"`
 	ReleasingDevice string `xml:"releasingDevice>deviceIdentifier" json:"releasingDevice"`
@@ -308,6 +313,7 @@ type ConnectionClearedEvent struct {
 
 // MailIncomingReadyEvent описывает структуру о новом голосовом сообщении
 type MailIncomingReadyEvent struct {
+	Type       string `xml:"-" json:"type"`
 	From       string `xml:"from,attr" json:"from"`
 	FromName   string `xml:"fromName,attr" json:"fromName"`
 	CallerName string `xml:"callerName,attr" json:"callerName"`
