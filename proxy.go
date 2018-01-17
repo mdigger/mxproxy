@@ -209,6 +209,11 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(vmail); err != nil {
 					return err
 				}
+				// игнорируем прочитанные голосовые сообщения
+				if vmail.Read {
+					ctxlog.Debug("ignore readed voicemail", "id", vmail.MailID)
+					return nil
+				}
 				vmail.Timestamp = time.Now().Unix()
 				p.push.Send(conn.Login, vmail) // отсылаем уведомление
 				ctxlog.Info("new voice mail", "id", vmail.MailID)
@@ -272,6 +277,33 @@ type DeliveredEvent struct {
 	Timestamp             int64  `xml:"-" json:"timestamp"`
 }
 
+type EstablishedEvent struct {
+	CallID                int64  `xml:"establishedConnection>callID" json:"callId"`
+	DeviceID              string `xml:"establishedConnection>deviceID" json:"deviceId"`
+	GlobalCallID          string `xml:"establishedConnection>globalCallID" json:"globalCallId"`
+	AnsweringDevice       string `xml:"answeringDevice>deviceIdentifier" json:"answeringDevice"`
+	AnsweringDisplayName  string `xml:"answeringDisplayName" json:"answeringDisplayName"`
+	CallingDevice         string `xml:"callingDevice>deviceIdentifier" json:"callingDevice"`
+	CalledDevice          string `xml:"calledDevice>deviceIdentifier" json:"calledDevice"`
+	LastRedirectionDevice string `xml:"lastRedirectionDevice>deviceIdentifier" json:"lastRedirectionDevice,omitempty"`
+	CallingDisplayName    string `xml:"callingDisplayName" json:"callingDisplayName"`
+	Cause                 string `xml:"cause" json:"cause"`
+	CallTypeFlags         uint32 `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
+	CmdsAllowed           uint32 `xml:"cmdsAllowed" json:"cmdsAllowed,omitempty"`
+	Cads                  []struct {
+		Name  string `xml:"name,attr" json:"name"`
+		Type  string `xml:"type,attr" json:"type"`
+		Value string `xml:",chardata" json:"value,omitempty"`
+	} `xml:"cad,omitempty" json:"cads,omitempty"`
+}
+
+type ConnectionClearedEvent struct {
+	CallID          int64  `xml:"droppedConnection>callID" json:"callId"`
+	DeviceID        string `xml:"droppedConnection>deviceID" json:"deviceId"`
+	ReleasingDevice string `xml:"releasingDevice>deviceIdentifier" json:"releasingDevice"`
+	Cause           string `xml:"cause" json:"cause"`
+}
+
 // MailIncomingReadyEvent описывает структуру о новом голосовом сообщении
 type MailIncomingReadyEvent struct {
 	From              string `xml:"from,attr" json:"from"`
@@ -287,7 +319,7 @@ type MailIncomingReadyEvent struct {
 	MediaType         string `xml:"mediaType" json:"mediaType"`
 	GlobalCallID      string `xml:"gcid" json:"gcid"`
 	Received          int64  `xml:"received" json:"received"`
-	Duration          uint16 `xml:"Duration" json:"Duration"`
+	Duration          uint16 `xml:"Duration" json:"duration"`
 	Read              bool   `xml:"read" json:"read"`
 	FileFormat        string `xml:"fileFormat" json:"fileFormat"`
 	Note              string `xml:"note" json:"note,omitempty"`
@@ -350,7 +382,7 @@ func (p *Proxy) Logout(c *rest.Context) error {
 		return rest.NewError(http.StatusForbidden,
 			fmt.Sprintf("bearer authorization token required"))
 	}
-	// проверяем валидность токена и получаем логин пользователя
+	// проверяем ва����идность токена и получаем логин поль��ователя
 	login, err := p.jwtGen.Verify(strings.TrimPrefix(auth, "Bearer "))
 	if err != nil {
 		return rest.NewError(http.StatusForbidden,
@@ -360,7 +392,7 @@ func (p *Proxy) Logout(c *rest.Context) error {
 	// останавливаем соединение
 	if conn, ok := p.conns.Load(login); ok {
 		p.conns.Delete(login)  // удаляем из списка
-		conn.(*MXConn).Close() // останавливаем соединение
+		conn.(*MXConn).Close() // остан��вливаем соединение
 	}
 	// удаляем из хранилища
 	if err = p.store.RemoveUser(login); err != nil {
@@ -583,7 +615,7 @@ func (p *Proxy) Transfer(c *rest.Context) error {
 	return c.Write(rest.JSON{"transfer": params})
 }
 
-// Voicemails отдает список голосовых сообщений пользователя.
+// Voicemails отдает список гол����совых сообщений пользователя.
 func (p *Proxy) Voicemails(c *rest.Context) error {
 	conn, err := p.getConnection(c)
 	if err != nil {
