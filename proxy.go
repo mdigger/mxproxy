@@ -277,6 +277,7 @@ type DeliveredEvent struct {
 	Timestamp             int64  `xml:"-" json:"timestamp"`
 }
 
+// EstablishedEvent описывает событие о состоявшемся звонке.
 type EstablishedEvent struct {
 	CallID                int64  `xml:"establishedConnection>callID" json:"callId"`
 	DeviceID              string `xml:"establishedConnection>deviceID" json:"deviceId"`
@@ -297,6 +298,7 @@ type EstablishedEvent struct {
 	} `xml:"cad,omitempty" json:"cads,omitempty"`
 }
 
+// ConnectionClearedEvent описывает событие о завершенном звонке.
 type ConnectionClearedEvent struct {
 	CallID          int64  `xml:"droppedConnection>callID" json:"callId"`
 	DeviceID        string `xml:"droppedConnection>deviceID" json:"deviceId"`
@@ -306,24 +308,24 @@ type ConnectionClearedEvent struct {
 
 // MailIncomingReadyEvent описывает структуру о новом голосовом сообщении
 type MailIncomingReadyEvent struct {
-	From              string `xml:"from,attr" json:"from"`
-	FromName          string `xml:"fromName,attr" json:"fromName"`
-	CallerName        string `xml:"callerName,attr" json:"callerName"`
-	To                string `xml:"to,attr" json:"to"`
-	Private           string `xml:"private,attr" json:"private"`
-	Urgent            string `xml:"urgent,attr" json:"urgent"`
+	From       string `xml:"from,attr" json:"from"`
+	FromName   string `xml:"fromName,attr" json:"fromName"`
+	CallerName string `xml:"callerName,attr" json:"callerName"`
+	To         string `xml:"to,attr" json:"to"`
+	// Private           string `xml:"private,attr" json:"private"`
+	// Urgent            string `xml:"urgent,attr" json:"urgent"`
 	OwnerID           int64  `xml:"ownerId" json:"ownerId"`
 	OwnerType         string `xml:"ownerType,attr" json:"ownerType"`
 	MonitorCrossRefID int64  `xml:"monitorCrossRefID" json:"-"`
 	MailID            string `xml:"mailId" json:"mailId"`
-	MediaType         string `xml:"mediaType" json:"mediaType"`
-	GlobalCallID      string `xml:"gcid" json:"gcid"`
-	Received          int64  `xml:"received" json:"received"`
-	Duration          uint16 `xml:"Duration" json:"duration"`
-	Read              bool   `xml:"read" json:"read"`
-	FileFormat        string `xml:"fileFormat" json:"fileFormat"`
-	Note              string `xml:"note" json:"note,omitempty"`
-	Timestamp         int64  `xml:"-" json:"timestamp"`
+	// MediaType         string `xml:"mediaType" json:"mediaType"`
+	GlobalCallID string `xml:"gcid" json:"gcid"`
+	Received     int64  `xml:"received" json:"received"`
+	Duration     uint16 `xml:"Duration" json:"duration"`
+	Read         bool   `xml:"read" json:"-"`
+	// FileFormat        string `xml:"fileFormat" json:"fileFormat"`
+	// Note              string `xml:"note" json:"note,omitempty"`
+	Timestamp int64 `xml:"-" json:"timestamp"`
 }
 
 // Login проверяет авторизацию и возвращает авторизационный токен. Если
