@@ -205,6 +205,24 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				delivered.Type = "Delivered"
 				p.push.Send(conn.Login, delivered) // отсылаем уведомление
 				ctxlog.Info("incoming call", "id", delivered.CallID)
+			case "EstablishedEvent": // состоявшийся звонок
+				var established = new(EstablishedEvent)
+				if err := resp.Decode(established); err != nil {
+					return err
+				}
+				established.Timestamp = time.Now().Unix()
+				established.Type = "Established"
+				p.push.Send(conn.Login, established) // отсылаем уведомление
+				ctxlog.Info("established call", "id", established.CallID)
+			case "ConnectionClearedEvent": // окончание звонка
+				var cleared = new(ConnectionClearedEvent)
+				if err := resp.Decode(cleared); err != nil {
+					return err
+				}
+				cleared.Timestamp = time.Now().Unix()
+				cleared.Type = "ConnectionCleared"
+				p.push.Send(conn.Login, cleared) // отсылаем уведомление
+				ctxlog.Info("connection cleared call", "id", cleared.CallID)
 			case "MailIncomingReadyEvent": // новое голосовое сообщение
 				var vmail = new(MailIncomingReadyEvent)
 				if err := resp.Decode(vmail); err != nil {
@@ -221,7 +239,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				ctxlog.Info("new voice mail", "id", vmail.MailID)
 			}
 			return nil
-		}, "DeliveredEvent", "MailIncomingReadyEvent")
+		}, "DeliveredEvent", "MailIncomingReadyEvent", "EstablishedEvent",
+			"ConnectionClearedEvent")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
@@ -300,6 +319,7 @@ type EstablishedEvent struct {
 		Type  string `xml:"type,attr" json:"type"`
 		Value string `xml:",chardata" json:"value,omitempty"`
 	} `xml:"cad,omitempty" json:"cads,omitempty"`
+	Timestamp int64 `xml:"-" json:"timestamp"`
 }
 
 // ConnectionClearedEvent описывает событие о завершенном звонке.
@@ -309,6 +329,7 @@ type ConnectionClearedEvent struct {
 	DeviceID        string `xml:"droppedConnection>deviceID" json:"deviceId"`
 	ReleasingDevice string `xml:"releasingDevice>deviceIdentifier" json:"releasingDevice"`
 	Cause           string `xml:"cause" json:"cause"`
+	Timestamp       int64  `xml:"-" json:"timestamp"`
 }
 
 // MailIncomingReadyEvent описывает структуру о новом голосовом сообщении
@@ -357,7 +378,7 @@ func (p *Proxy) Login(c *rest.Context) error {
 	// получаем логин и пароль пользователя из запроса
 	var login, password = c.Form("username"), c.Form("password")
 	c.AddLogField("login", login) // добавим логин в лог
-	// проверяем авторизацию на сервере провижининга и получаем конфигурацию
+	// проверяем авторизацию на сервере провиж��нинга и получаем к����фигурацию
 	mxconf, err := p.GetProvisioning(login, password)
 	if err != nil {
 		return err
@@ -369,7 +390,7 @@ func (p *Proxy) Login(c *rest.Context) error {
 			return err
 		}
 	}
-	// сохраняем информацию о пользователе в хранилище
+	// сохраняем информ��цию о пользователе в хранилище
 	if err = p.store.AddUser(login, mxconf); err != nil {
 		return err
 	}
@@ -598,7 +619,7 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 
 // Transfer перенаправляет звонок на другой номер.
 func (p *Proxy) Transfer(c *rest.Context) error {
-	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	conn, err := p.getConnection(c) // провер��ем токен и получаем соединение
 	if err != nil {
 		return err
 	}
