@@ -88,6 +88,7 @@ func main() {
 	mux.Handle("POST", "/calls", proxy.MakeCall)
 	mux.Handle("PUT", "/calls/:id", proxy.SIPAnswer)
 	mux.Handle("POST", "/calls/:id", proxy.Transfer)
+	mux.Handle("DELETE", "/calls/:id", proxy.ClearConnection)
 	mux.Handle("PATCH", "/calls/:name", proxy.AssignDevice)
 
 	mux.Handle("GET", "/voicemails", proxy.Voicemails)

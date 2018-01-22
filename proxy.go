@@ -378,7 +378,7 @@ func (p *Proxy) Login(c *rest.Context) error {
 	// получаем логин и пароль пользователя из запроса
 	var login, password = c.Form("username"), c.Form("password")
 	c.AddLogField("login", login) // добавим логин в лог
-	// проверяем авторизацию на сервере п��овиж��нинга и ����������олучаем к����фигурацию
+	// проверяем авторизацию на сервере п��овиж��нинга и ������������������олучаем к����фигурацию
 	mxconf, err := p.GetProvisioning(login, password)
 	if err != nil {
 		return err
@@ -650,17 +650,11 @@ func (p *Proxy) ClearConnection(c *rest.Context) error {
 	if err != nil {
 		return err
 	}
-	// Params описывает параметры, передаваемые в запроса
 	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	// TODO: нужнен еще параметр с идентификатором устройства
-	if err = conn.ClearConnection(callID, ""); err != nil {
-		return err
-	}
-	var params interface{}
-	return c.Write(rest.JSON{"clearConnection": params})
+	return conn.ClearConnection(callID)
 }
 
 // Voicemails отдает список гол����совых сообщений пользователя.

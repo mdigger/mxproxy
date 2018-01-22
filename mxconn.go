@@ -365,7 +365,7 @@ func (c *MXConn) Transfer(callID int64, deviceID, to string) error {
 }
 
 // ClearConnection сбрасывает звонок.
-func (c *MXConn) ClearConnection(callID int64, deviceID string) error {
+func (c *MXConn) ClearConnection(callID int64) error {
 	// теперь отправляем команду на подтверждение звонка
 	_, err := c.SendWithResponse(&struct {
 		XMLName  xml.Name `xml:"ClearConnection"`
@@ -373,7 +373,7 @@ func (c *MXConn) ClearConnection(callID int64, deviceID string) error {
 		DeviceID string   `xml:"connectionToBeCleared>deviceID"`
 	}{
 		CallID:   callID,
-		DeviceID: deviceID,
+		DeviceID: c.Ext,
 	})
 	return err
 }
@@ -441,7 +441,7 @@ func (c *MXConn) VoiceMailSetRead(id string, read bool) error {
 	return err
 }
 
-// VoiceMailSetNote позволяет изменить ко����ментарий голосового сообщения.
+// VoiceMailSetNote позволяет измени��ь ко�����ментарий голосового сообщения.
 func (c *MXConn) VoiceMailSetNote(id string, note string) error {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	_, err := c.SendWithResponse(&struct {
