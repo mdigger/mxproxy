@@ -205,6 +205,8 @@ func startHTTPServer(mux http.Handler, host string) {
 			GetCertificate: manager.GetCertificate,
 		}
 		server.Addr = ":https"
+		// поддержка получения сертификата Let's Encrypt
+		go http.ListenAndServe(":http", manager.HTTPHandler(nil))
 	} else if port == "" {
 		server.Addr = net.JoinHostPort(httphost, "http")
 	} else {
