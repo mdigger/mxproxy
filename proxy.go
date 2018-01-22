@@ -301,9 +301,9 @@ type DeliveredEvent struct {
 
 // EstablishedEvent описывает событие о состоявшемся звонке.
 type EstablishedEvent struct {
-	Type   string `xml:"-" json:"type"`
-	CallID int64  `xml:"establishedConnection>callID" json:"callId"`
-	// DeviceID              string `xml:"establishedConnection>deviceID" json:"deviceId"`
+	Type     string `xml:"-" json:"type"`
+	CallID   int64  `xml:"establishedConnection>callID" json:"callId"`
+	DeviceID string `xml:"establishedConnection>deviceID" json:"deviceId"`
 	// GlobalCallID          string `xml:"establishedConnection>globalCallID" json:"globalCallId"`
 	// AnsweringDevice       string `xml:"answeringDevice>deviceIdentifier" json:"answeringDevice"`
 	// AnsweringDisplayName  string `xml:"answeringDisplayName" json:"answeringDisplayName"`
@@ -324,9 +324,9 @@ type EstablishedEvent struct {
 
 // ConnectionClearedEvent описывает событие о завершенном звонке.
 type ConnectionClearedEvent struct {
-	Type   string `xml:"-" json:"type"`
-	CallID int64  `xml:"droppedConnection>callID" json:"callId"`
-	// DeviceID        string `xml:"droppedConnection>deviceID" json:"deviceId"`
+	Type     string `xml:"-" json:"type"`
+	CallID   int64  `xml:"droppedConnection>callID" json:"callId"`
+	DeviceID string `xml:"droppedConnection>deviceID" json:"deviceId"`
 	// ReleasingDevice string `xml:"releasingDevice>deviceIdentifier" json:"releasingDevice"`
 	// Cause           string `xml:"cause" json:"cause"`
 	Timestamp int64 `xml:"-" json:"timestamp"`
@@ -378,7 +378,7 @@ func (p *Proxy) Login(c *rest.Context) error {
 	// получаем логин и пароль пользователя из запроса
 	var login, password = c.Form("username"), c.Form("password")
 	c.AddLogField("login", login) // добавим логин в лог
-	// проверяем авторизацию на сервере п��овиж��нинга и получаем к����фигурацию
+	// проверяем авторизацию на сервере п��овиж��нинга и ����������олучаем к����фигурацию
 	mxconf, err := p.GetProvisioning(login, password)
 	if err != nil {
 		return err
@@ -619,7 +619,7 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 
 // Transfer перенаправляет звонок на другой номер.
 func (p *Proxy) Transfer(c *rest.Context) error {
-	conn, err := p.getConnection(c) // провер��ем токен и получаем соединение
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
 	if err != nil {
 		return err
 	}
@@ -642,6 +642,25 @@ func (p *Proxy) Transfer(c *rest.Context) error {
 	}
 	params.CallID = callID
 	return c.Write(rest.JSON{"transfer": params})
+}
+
+// ClearConnection сбрасывает звонок.
+func (p *Proxy) ClearConnection(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// Params описывает параметры, передаваемые в запроса
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return rest.ErrNotFound
+	}
+	// TODO: нужнен еще параметр с идентификатором устройства
+	if err = conn.ClearConnection(callID, ""); err != nil {
+		return err
+	}
+	var params interface{}
+	return c.Write(rest.JSON{"clearConnection": params})
 }
 
 // Voicemails отдает список гол����совых сообщений пользователя.

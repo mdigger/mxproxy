@@ -364,6 +364,20 @@ func (c *MXConn) Transfer(callID int64, deviceID, to string) error {
 	return err
 }
 
+// ClearConnection сбрасывает звонок.
+func (c *MXConn) ClearConnection(callID int64, deviceID string) error {
+	// теперь отправляем команду на подтверждение звонка
+	_, err := c.SendWithResponse(&struct {
+		XMLName  xml.Name `xml:"ClearConnection"`
+		CallID   int64    `xml:"connectionToBeCleared>callID"`
+		DeviceID string   `xml:"connectionToBeCleared>deviceID"`
+	}{
+		CallID:   callID,
+		DeviceID: deviceID,
+	})
+	return err
+}
+
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
 func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
 	// запрашиваем список голосовых сообщений
@@ -427,7 +441,7 @@ func (c *MXConn) VoiceMailSetRead(id string, read bool) error {
 	return err
 }
 
-// VoiceMailSetNote позволяет изменить комментарий голосового сообщения.
+// VoiceMailSetNote позволяет изменить ко����ментарий голосового сообщения.
 func (c *MXConn) VoiceMailSetNote(id string, note string) error {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	_, err := c.SendWithResponse(&struct {
