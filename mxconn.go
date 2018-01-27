@@ -378,6 +378,37 @@ func (c *MXConn) ClearConnection(callID int64) error {
 	return err
 }
 
+// HeldEvent описывает ответ при блокировке звонка.
+type HeldEvent struct {
+	CallID        int64  `xml:"heldConnection>callID" json:"callId"`
+	DeviceID      string `xml:"heldConnection>deviceID" json:"deviceId"`
+	Cause         string `xml:"cause" json:"cause"`
+	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
+	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
+}
+
+// CallHold подвешивает звонок.
+func (c *MXConn) CallHold(callID uint64) (*HeldEvent, error) {
+	if _, err := c.SendWithResponse(&struct {
+		XMLName  xml.Name `xml:"HoldCall"`
+		CallID   uint64   `xml:"callToBeHeld>callID"`
+		DeviceID string   `xml:"callToBeHeld>deviceID"`
+	}{
+		CallID:   callID,
+		DeviceID: c.Ext,
+	}); err != nil {
+		return nil, err
+	}
+	// разбираем реальный ответ
+	var held = new(HeldEvent)
+	if err := c.HandleWait(func(resp *mx.Response) error {
+		return resp.Decode(held)
+	}, mx.ReadTimeout, "HeldEvent"); err != nil {
+		return nil, err
+	}
+	return held, nil
+}
+
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
 func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
 	// запрашиваем список голосовых сообщений
@@ -414,10 +445,10 @@ type VoiceMail struct {
 }
 
 // VoiceMailDelete удаляет голосовое сообщение пользователя. При удалении
-// голосового сообщения с несуществующим или чужим идентификатором ничего
+// голосового сообщен��я с несуще��твующим или ч����жим иден��иф���катором ничего
 // не происходит и ошибка не возвращается.
 func (c *MXConn) VoiceMailDelete(id string) error {
-	// запрашиваем первый кусочек файла с голосовым сообщением
+	// запрашиваем ������ервый кусочек файла с голосовым ����ообщением
 	_, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"MailDeleteIncoming"`
 		MailID  string   `xml:"mailId"`
@@ -429,7 +460,7 @@ func (c *MXConn) VoiceMailDelete(id string) error {
 
 // VoiceMailSetRead позволяет изменить состояние прочтения голосового сообщения.
 func (c *MXConn) VoiceMailSetRead(id string, read bool) error {
-	// запрашиваем первый кусочек файла с голосовым сообщением
+	// ��апрашива��м первый кусочек файла с голосовым сообщением
 	_, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"MailSetStatus"`
 		MailID  string   `xml:"mailId"`
