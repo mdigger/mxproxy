@@ -409,6 +409,37 @@ func (c *MXConn) CallHold(callID uint64) (*HeldEvent, error) {
 	return held, nil
 }
 
+// RetrievedEvent описывает ответ при разблокировке звонка.
+type RetrievedEvent struct {
+	CallID        int64  `xml:"retrievedConnection>callID" json:"callId"`
+	DeviceID      string `xml:"retrievedConnection>deviceID" json:"deviceId"`
+	Cause         string `xml:"cause" json:"cause"`
+	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
+	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
+}
+
+// CallUnHold разблокирует звонок.
+func (c *MXConn) CallUnHold(callID uint64) (*RetrievedEvent, error) {
+	if _, err := c.SendWithResponse(&struct {
+		XMLName  xml.Name `xml:"RetrieveCall "`
+		CallID   uint64   `xml:"callToBeRetrieved>callID"`
+		DeviceID string   `xml:"callToBeRetrieved>deviceID"`
+	}{
+		CallID:   callID,
+		DeviceID: c.Ext,
+	}); err != nil {
+		return nil, err
+	}
+	// разбираем реальный ответ
+	var retrieved = new(RetrievedEvent)
+	if err := c.HandleWait(func(resp *mx.Response) error {
+		return resp.Decode(retrieved)
+	}, mx.ReadTimeout, "RetrievedEvent"); err != nil {
+		return nil, err
+	}
+	return retrieved, nil
+}
+
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
 func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
 	// запрашиваем список голосовых сообщений
