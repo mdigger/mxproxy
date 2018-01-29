@@ -378,7 +378,7 @@ func (p *Proxy) Login(c *rest.Context) error {
 	// получаем логин и пароль пользователя из запроса
 	var login, password = c.Form("username"), c.Form("password")
 	c.AddLogField("login", login) // добавим логин в лог
-	// проверяем авторизацию на сервере п��овиж��нинга и ������������������������������������олучаем к����фигурацию
+	// проверяем авторизацию на сервере провижининга
 	mxconf, err := p.GetProvisioning(login, password)
 	if err != nil {
 		return err
@@ -390,7 +390,7 @@ func (p *Proxy) Login(c *rest.Context) error {
 			return err
 		}
 	}
-	// сохраняем информ��цию о пользователе в хранилище
+	// сохраняем информацию о пользователе в хранилище
 	if err = p.store.AddUser(login, mxconf); err != nil {
 		return err
 	}
@@ -411,7 +411,7 @@ func (p *Proxy) Logout(c *rest.Context) error {
 		return rest.NewError(http.StatusForbidden,
 			fmt.Sprintf("bearer authorization token required"))
 	}
-	// проверяем ва����идность токена и получаем логин поль��ователя
+	// проверяем валидность токена и получаем логин пользователя
 	login, err := p.jwtGen.Verify(strings.TrimPrefix(auth, "Bearer "))
 	if err != nil {
 		return rest.NewError(http.StatusForbidden,
@@ -421,7 +421,7 @@ func (p *Proxy) Logout(c *rest.Context) error {
 	// останавливаем соединение
 	if conn, ok := p.conns.Load(login); ok {
 		p.conns.Delete(login)  // удаляем из списка
-		conn.(*MXConn).Close() // остан��вливаем соединение
+		conn.(*MXConn).Close() // останавливаем соединение
 	}
 	// удаляем из хранилища
 	if err = p.store.RemoveUser(login); err != nil {
@@ -470,13 +470,15 @@ func (p *Proxy) LoginInfo(c *rest.Context) error {
 		return err
 	}
 	return c.Write(&struct {
-		MX  string `json:"mx"`
-		Ext string `json:"ext"`
-		JID mx.JID `json:"jid,string"`
+		MX           string `json:"mx"`
+		Ext          string `json:"ext"`
+		JID          mx.JID `json:"jid,string"`
+		SoftPhonePwd string `json:"softPhonePwd"`
 	}{
-		MX:  conn.SN,
-		Ext: conn.Ext,
-		JID: conn.JID,
+		MX:           conn.SN,
+		Ext:          conn.Ext,
+		JID:          conn.JID,
+		SoftPhonePwd: conn.SoftPhonePwd,
 	})
 }
 
