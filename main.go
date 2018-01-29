@@ -90,6 +90,8 @@ func main() {
 	mux.Handle("POST", "/calls/:id", proxy.Transfer)
 	mux.Handle("DELETE", "/calls/:id", proxy.ClearConnection)
 	mux.Handle("PATCH", "/calls/:name", proxy.AssignDevice)
+	mux.Handle("PUT", "/calls/:id/hold", proxy.CallHold)
+	mux.Handle("PUT", "/calls/:id/unhold", proxy.CallUnHold)
 
 	mux.Handle("GET", "/voicemails", proxy.Voicemails)
 	mux.Handle("GET", "/voicemails/:id", proxy.GetVoiceMailFile)

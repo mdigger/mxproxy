@@ -388,10 +388,10 @@ type HeldEvent struct {
 }
 
 // CallHold подвешивает звонок.
-func (c *MXConn) CallHold(callID uint64) (*HeldEvent, error) {
+func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
 	if _, err := c.SendWithResponse(&struct {
 		XMLName  xml.Name `xml:"HoldCall"`
-		CallID   uint64   `xml:"callToBeHeld>callID"`
+		CallID   int64    `xml:"callToBeHeld>callID"`
 		DeviceID string   `xml:"callToBeHeld>deviceID"`
 	}{
 		CallID:   callID,
@@ -419,10 +419,10 @@ type RetrievedEvent struct {
 }
 
 // CallUnHold разблокирует звонок.
-func (c *MXConn) CallUnHold(callID uint64) (*RetrievedEvent, error) {
+func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 	if _, err := c.SendWithResponse(&struct {
 		XMLName  xml.Name `xml:"RetrieveCall "`
-		CallID   uint64   `xml:"callToBeRetrieved>callID"`
+		CallID   int64    `xml:"callToBeRetrieved>callID"`
 		DeviceID string   `xml:"callToBeRetrieved>deviceID"`
 	}{
 		CallID:   callID,

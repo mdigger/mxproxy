@@ -378,7 +378,7 @@ func (p *Proxy) Login(c *rest.Context) error {
 	// получаем логин и пароль пользователя из запроса
 	var login, password = c.Form("username"), c.Form("password")
 	c.AddLogField("login", login) // добавим логин в лог
-	// проверяем авторизацию на сервере п��овиж��нинга и ������������������олучаем к����фигурацию
+	// проверяем авторизацию на сервере п��овиж��нинга и ������������������������������������олучаем к����фигурацию
 	mxconf, err := p.GetProvisioning(login, password)
 	if err != nil {
 		return err
@@ -598,7 +598,7 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	// инициализируем параметры по умолчанию и разбираем запрос
+	// инициализируем параметры по умолчанию и разб��ра��м запрос
 	var params = &struct {
 		CallID  int64  `json:"callId" form:"callId"`
 		Device  string `json:"device" form:"device"`
@@ -655,6 +655,40 @@ func (p *Proxy) ClearConnection(c *rest.Context) error {
 		return rest.ErrNotFound
 	}
 	return conn.ClearConnection(callID)
+}
+
+// CallHold блокирует звонок.
+func (p *Proxy) CallHold(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return rest.ErrNotFound
+	}
+	resp, err := conn.CallHold(callID)
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"callHold": resp})
+}
+
+// CallUnHold разблокирует звонок.
+func (p *Proxy) CallUnHold(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return rest.ErrNotFound
+	}
+	resp, err := conn.CallUnHold(callID)
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"callUnHold": resp})
 }
 
 // Voicemails отдает список гол����совых сообщений пользователя.

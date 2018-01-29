@@ -753,6 +753,34 @@ Authorization: Bearer <token>
 
 Позволяет сбросить звонок.
 
+## Блокировка/разблокировка звонка
+
+```http
+PUT /calls/123/hold HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Позволяет заблокировать звонок.
+
+```http
+PUT /calls/123/unhold HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Позволяет разблокировать звонок.
+
+В ответ возвращаются данные о звонке:
+
+```json
+{
+    "callId": 123,
+    "deviceId": "1049",
+    "cause": "normal",
+    "callTypeFlags": 137363459,
+    "cmdsAllowed": 376
+}
+```
+
 ## Список голосовых сообщений пользователя (голосовая почта)
 
 ```http
