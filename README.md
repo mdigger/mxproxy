@@ -46,7 +46,8 @@ Content-Type: application/json; charset=utf-8
 {
     "mx": "63022",
     "ext": "3044",
-    "jid": "43884851428118509"
+    "jid": "43884851428118509",
+    "softPhonePwd": "EqNe45DYvZH2va1gesL7AA1ldtP04j4a"
 }
 ```
 
