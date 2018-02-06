@@ -45,9 +45,9 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 	if _, err = conn.Login(mx.Login{
 		UserName: conf.Login,
 		Password: conf.Password,
-		Type:     "Mobile",
+		Type:     "User", //"Mobile",
 		Platform: "iPhone",
-		Version:  "1.0",
+		Version:  "7.0",
 	}); err != nil {
 		return nil, err
 	}
