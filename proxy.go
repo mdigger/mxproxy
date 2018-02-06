@@ -87,8 +87,8 @@ func InitProxy() (proxy *Proxy, err error) {
 		tokenTTL = d
 	}
 	var singKeyTTL = time.Hour * 6
-	if config.JWT.TokenTTL != "" {
-		d, err := time.ParseDuration(config.JWT.TokenTTL)
+	if config.JWT.SingKeyTTL != "" {
+		d, err := time.ParseDuration(config.JWT.SingKeyTTL)
 		if err != nil {
 			return nil, err
 		}
