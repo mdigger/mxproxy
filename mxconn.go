@@ -421,7 +421,7 @@ type RetrievedEvent struct {
 // CallUnHold разблокирует звонок.
 func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 	if _, err := c.SendWithResponse(&struct {
-		XMLName  xml.Name `xml:"RetrieveCall "`
+		XMLName  xml.Name `xml:"RetrieveCall"`
 		CallID   int64    `xml:"callToBeRetrieved>callID"`
 		DeviceID string   `xml:"callToBeRetrieved>deviceID"`
 	}{
