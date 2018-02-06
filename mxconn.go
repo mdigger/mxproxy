@@ -378,6 +378,9 @@ func (c *MXConn) ClearConnection(callID int64) error {
 	return err
 }
 
+// WaitTimeout задает время ожидания ответа от сервера MX.
+const WaitTimeout = time.Second * 10
+
 // HeldEvent описывает ответ при блокировке звонка.
 type HeldEvent struct {
 	CallID        int64  `xml:"heldConnection>callID" json:"callId"`
@@ -403,7 +406,7 @@ func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
 	var held = new(HeldEvent)
 	if err := c.HandleWait(func(resp *mx.Response) error {
 		return resp.Decode(held)
-	}, mx.ReadTimeout, "HeldEvent"); err != nil {
+	}, WaitTimeout, "HeldEvent"); err != nil {
 		return nil, err
 	}
 	return held, nil
@@ -434,7 +437,7 @@ func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 	var retrieved = new(RetrievedEvent)
 	if err := c.HandleWait(func(resp *mx.Response) error {
 		return resp.Decode(retrieved)
-	}, mx.ReadTimeout, "RetrievedEvent"); err != nil {
+	}, WaitTimeout, "RetrievedEvent"); err != nil {
 		return nil, err
 	}
 	return retrieved, nil
