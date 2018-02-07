@@ -405,6 +405,9 @@ func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
 		if err := resp.Decode(held); err != nil {
 			return err
 		}
+		if held.CallID != callID {
+			return nil
+		}
 		return mx.Stop
 	}, mx.ReadTimeout, "HeldEvent")
 	if err != nil {
@@ -440,17 +443,19 @@ func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 		if err := resp.Decode(retrieved); err != nil {
 			return err
 		}
+		if retrieved.CallID != callID {
+			return nil
+		}
 		return mx.Stop
-	}, mx.ReadTimeout, "RetrievedEvent")
+	}, time.Second*10, "RetrievedEvent")
 	if err != nil {
 		return nil, err
 	}
 	return retrieved, nil
 }
 
-// VoiceMailList возвращает список записей в г������л��совой почте пользователя.
+// VoiceMailList возвращает список записей в голосовой почте пользователя.
 func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
-	// запраш��ва��������м спи��ок голосовых сообще��ий
 	resp, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"MailGetListIncoming"`
 		UserID  string   `xml:"userID"`
@@ -484,10 +489,9 @@ type VoiceMail struct {
 }
 
 // VoiceMailDelete удаляет голосовое сообщение пользователя. При удалении
-// голосового сообщен��я с несуще��твующим или ч����жим иден��иф���катором ничего
+// голосового сообщения с несуществующим или чужим идентификатором ничего
 // не происходит и ошибка не возвращается.
 func (c *MXConn) VoiceMailDelete(id string) error {
-	// запрашиваем ������ервый кусочек файла с голосовым ����ообщением
 	_, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"MailDeleteIncoming"`
 		MailID  string   `xml:"mailId"`
@@ -511,7 +515,7 @@ func (c *MXConn) VoiceMailSetRead(id string, read bool) error {
 	return err
 }
 
-// VoiceMailSetNote позволяет измени��ь ко�����ментарий голосового сообщения.
+// VoiceMailSetNote позволяет изменить комментарий голосового сообщения.
 func (c *MXConn) VoiceMailSetNote(id string, note string) error {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	_, err := c.SendWithResponse(&struct {
@@ -525,7 +529,7 @@ func (c *MXConn) VoiceMailSetNote(id string, note string) error {
 	return err
 }
 
-// VoiceMailFile отдает сод��ржимое файла с голосовым сообщением.
+// VoiceMailFile отдает содержимое файла с голосовым сообщением.
 func (c *MXConn) VoiceMailFile(id string) (*Chunks, error) {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	resp, err := c.SendWithResponse(&struct {
