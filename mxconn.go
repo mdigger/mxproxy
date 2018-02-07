@@ -378,9 +378,6 @@ func (c *MXConn) ClearConnection(callID int64) error {
 	return err
 }
 
-// WaitTimeout задает время ожидания ответа от сервера MX.
-const WaitTimeout = time.Second * 10
-
 // HeldEvent описывает ответ при блокировке звонка.
 type HeldEvent struct {
 	CallID        int64  `xml:"heldConnection>callID" json:"callId"`
@@ -404,9 +401,13 @@ func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
 	}
 	// разбираем реальный ответ
 	var held = new(HeldEvent)
-	if err := c.HandleWait(func(resp *mx.Response) error {
-		return resp.Decode(held)
-	}, WaitTimeout, "HeldEvent"); err != nil {
+	err := c.HandleWait(func(resp *mx.Response) error {
+		if err := resp.Decode(held); err != nil {
+			return err
+		}
+		return mx.Stop
+	}, mx.ReadTimeout, "HeldEvent")
+	if err != nil {
 		return nil, err
 	}
 	return held, nil
@@ -423,7 +424,7 @@ type RetrievedEvent struct {
 
 // CallUnHold разблокирует звонок.
 func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
-	if _, err := c.SendWithResponse(&struct {
+	if err := c.Send(&struct {
 		XMLName  xml.Name `xml:"RetrieveCall"`
 		CallID   int64    `xml:"callToBeRetrieved>callID"`
 		DeviceID string   `xml:"callToBeRetrieved>deviceID"`
@@ -435,17 +436,21 @@ func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 	}
 	// разбираем реальный ответ
 	var retrieved = new(RetrievedEvent)
-	if err := c.HandleWait(func(resp *mx.Response) error {
-		return resp.Decode(retrieved)
-	}, WaitTimeout, "RetrievedEvent"); err != nil {
+	err := c.HandleWait(func(resp *mx.Response) error {
+		if err := resp.Decode(retrieved); err != nil {
+			return err
+		}
+		return mx.Stop
+	}, mx.ReadTimeout, "RetrievedEvent")
+	if err != nil {
 		return nil, err
 	}
 	return retrieved, nil
 }
 
-// VoiceMailList возвращает список записей в голосовой почте пользователя.
+// VoiceMailList возвращает список записей в г������л��совой почте пользователя.
 func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
-	// запрашиваем список голосовых сообщений
+	// запраш��ва��������м спи��ок голосовых сообще��ий
 	resp, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"MailGetListIncoming"`
 		UserID  string   `xml:"userID"`
