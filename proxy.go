@@ -301,35 +301,35 @@ type DeliveredEvent struct {
 
 // EstablishedEvent описывает событие о состоявшемся звонке.
 type EstablishedEvent struct {
-	Type     string `xml:"-" json:"type"`
-	CallID   int64  `xml:"establishedConnection>callID" json:"callId"`
-	DeviceID string `xml:"establishedConnection>deviceID" json:"deviceId"`
-	// GlobalCallID          string `xml:"establishedConnection>globalCallID" json:"globalCallId"`
-	// AnsweringDevice       string `xml:"answeringDevice>deviceIdentifier" json:"answeringDevice"`
-	// AnsweringDisplayName  string `xml:"answeringDisplayName" json:"answeringDisplayName"`
-	// CallingDevice         string `xml:"callingDevice>deviceIdentifier" json:"callingDevice"`
-	// CalledDevice          string `xml:"calledDevice>deviceIdentifier" json:"calledDevice"`
-	// LastRedirectionDevice string `xml:"lastRedirectionDevice>deviceIdentifier" json:"lastRedirectionDevice,omitempty"`
-	// CallingDisplayName    string `xml:"callingDisplayName" json:"callingDisplayName"`
-	// Cause                 string `xml:"cause" json:"cause"`
-	// CallTypeFlags         uint32 `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
-	// CmdsAllowed           uint32 `xml:"cmdsAllowed" json:"cmdsAllowed,omitempty"`
-	// Cads                  []struct {
-	// Name  string `xml:"name,attr" json:"name"`
-	// Type  string `xml:"type,attr" json:"type"`
-	// Value string `xml:",chardata" json:"value,omitempty"`
-	// } `xml:"cad,omitempty" json:"cads,omitempty"`
+	Type                  string `xml:"-" json:"type"`
+	CallID                int64  `xml:"establishedConnection>callID" json:"callId"`
+	DeviceID              string `xml:"establishedConnection>deviceID" json:"deviceId"`
+	GlobalCallID          string `xml:"establishedConnection>globalCallID" json:"globalCallId"`
+	AnsweringDevice       string `xml:"answeringDevice>deviceIdentifier" json:"answeringDevice"`
+	AnsweringDisplayName  string `xml:"answeringDisplayName" json:"answeringDisplayName"`
+	CallingDevice         string `xml:"callingDevice>deviceIdentifier" json:"callingDevice"`
+	CalledDevice          string `xml:"calledDevice>deviceIdentifier" json:"calledDevice"`
+	LastRedirectionDevice string `xml:"lastRedirectionDevice>deviceIdentifier" json:"lastRedirectionDevice,omitempty"`
+	CallingDisplayName    string `xml:"callingDisplayName" json:"callingDisplayName"`
+	Cause                 string `xml:"cause" json:"cause"`
+	CallTypeFlags         uint32 `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
+	CmdsAllowed           uint32 `xml:"cmdsAllowed" json:"cmdsAllowed,omitempty"`
+	Cads                  []struct {
+		Name  string `xml:"name,attr" json:"name"`
+		Type  string `xml:"type,attr" json:"type"`
+		Value string `xml:",chardata" json:"value,omitempty"`
+	} `xml:"cad,omitempty" json:"cads,omitempty"`
 	Timestamp int64 `xml:"-" json:"timestamp"`
 }
 
 // ConnectionClearedEvent описывает событие о завершенном звонке.
 type ConnectionClearedEvent struct {
-	Type     string `xml:"-" json:"type"`
-	CallID   int64  `xml:"droppedConnection>callID" json:"callId"`
-	DeviceID string `xml:"droppedConnection>deviceID" json:"deviceId"`
-	// ReleasingDevice string `xml:"releasingDevice>deviceIdentifier" json:"releasingDevice"`
-	// Cause           string `xml:"cause" json:"cause"`
-	Timestamp int64 `xml:"-" json:"timestamp"`
+	Type            string `xml:"-" json:"type"`
+	CallID          int64  `xml:"droppedConnection>callID" json:"callId"`
+	DeviceID        string `xml:"droppedConnection>deviceID" json:"deviceId"`
+	ReleasingDevice string `xml:"releasingDevice>deviceIdentifier" json:"releasingDevice"`
+	Cause           string `xml:"cause" json:"cause"`
+	Timestamp       int64  `xml:"-" json:"timestamp"`
 }
 
 // MailIncomingReadyEvent описывает структуру о новом голосовом сообщении
@@ -600,7 +600,7 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	// инициализируем параметры по умолчанию и разб��ра��м запрос
+	// инициализируем параметры по умолчанию и разб��ра��м запр����с
 	var params = &struct {
 		CallID  int64  `json:"callId" form:"callId"`
 		Device  string `json:"device" form:"device"`

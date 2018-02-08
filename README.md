@@ -754,7 +754,7 @@ Authorization: Bearer <token>
 
 Позволяет сбросить звонок.
 
-## Блокировка/разблокировка звонка
+## Блокировка звонка
 
 ```http
 PUT /calls/123/hold HTTP/1.1
@@ -762,13 +762,6 @@ Authorization: Bearer <token>
 ```
 
 Позволяет заблокировать звонок.
-
-```http
-PUT /calls/123/unhold HTTP/1.1
-Authorization: Bearer <token>
-```
-
-Позволяет разблокировать звонок.
 
 В ответ возвращаются данные о звонке:
 
@@ -781,6 +774,15 @@ Authorization: Bearer <token>
     "cmdsAllowed": 376
 }
 ```
+## Разблокировка звонка
+
+```http
+PUT /calls/123/unhold HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Позволяет разблокировать звонок.
+
 
 ## Список голосовых сообщений пользователя (голосовая почта)
 
