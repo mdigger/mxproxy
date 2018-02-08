@@ -416,42 +416,26 @@ func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
 	return held, nil
 }
 
-// RetrievedEvent описывает ответ при разблокировке звонка.
-type RetrievedEvent struct {
-	CallID        int64  `xml:"retrievedConnection>callID" json:"callId"`
-	DeviceID      string `xml:"retrievedConnection>deviceID" json:"deviceId"`
-	Cause         string `xml:"cause" json:"cause"`
-	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
-	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
-}
+// // RetrievedEvent описывает ответ при разблокировке звонка.
+// type RetrievedEvent struct {
+// 	CallID        int64  `xml:"retrievedConnection>callID" json:"callId"`
+// 	DeviceID      string `xml:"retrievedConnection>deviceID" json:"deviceId"`
+// 	Cause         string `xml:"cause" json:"cause"`
+// 	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
+// 	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
+// }
 
 // CallUnHold разблокирует звонок.
-func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
-	if err := c.Send(&struct {
+func (c *MXConn) CallUnHold(callID int64) error {
+	_, err := c.SendWithResponse(&struct {
 		XMLName  xml.Name `xml:"RetrieveCall"`
 		CallID   int64    `xml:"callToBeRetrieved>callID"`
 		DeviceID string   `xml:"callToBeRetrieved>deviceID"`
 	}{
 		CallID:   callID,
 		DeviceID: c.Ext,
-	}); err != nil {
-		return nil, err
-	}
-	// разбираем реальный ответ
-	var retrieved = new(RetrievedEvent)
-	err := c.HandleWait(func(resp *mx.Response) error {
-		if err := resp.Decode(retrieved); err != nil {
-			return err
-		}
-		if retrieved.CallID != callID {
-			return nil
-		}
-		return mx.Stop
-	}, time.Second*10, "RetrievedEvent")
-	if err != nil {
-		return nil, err
-	}
-	return retrieved, nil
+	})
+	return err
 }
 
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
@@ -474,7 +458,7 @@ func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
 	return vmails.Mails, nil
 }
 
-// VoiceMail описывает информацию о записи в голосовой почте.
+// VoiceMail описывает информацию о записи в голосо��ой почте.
 type VoiceMail struct {
 	From       string        `xml:"from,attr" json:"from"`
 	FromName   string        `xml:"fromName,attr" json:"fromName,omitempty"`

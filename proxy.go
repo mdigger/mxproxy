@@ -686,11 +686,7 @@ func (p *Proxy) CallUnHold(c *rest.Context) error {
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	resp, err := conn.CallUnHold(callID)
-	if err != nil {
-		return err
-	}
-	return c.Write(rest.JSON{"callUnHold": resp})
+	return conn.CallUnHold(callID)
 }
 
 // Voicemails отдает список гол����совых сообщений пользователя.
