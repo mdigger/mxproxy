@@ -9,6 +9,7 @@ import (
 
 	"github.com/mdigger/log"
 	"github.com/mdigger/mx"
+	"github.com/mdigger/rest"
 )
 
 func init() {
@@ -244,7 +245,7 @@ func (c *MXConn) AssignDevice(name string) error {
 		Type string `xml:"type,attr"`
 		Name string `xml:",chardata"`
 	}
-	_, err := c.SendWithResponse(&struct {
+	if _, err := c.SendWithResponse(&struct {
 		XMLName xml.Name `xml:"AssignDevice"`
 		Device  device   `xml:"deviceID"`
 	}{
@@ -252,8 +253,22 @@ func (c *MXConn) AssignDevice(name string) error {
 			Type: "device",
 			Name: name,
 		},
-	})
-	return err
+	}); err != nil {
+		return err
+	}
+	// дожидаемся AssignDeviceInfo
+	return c.HandleWait(func(resp *mx.Response) error {
+		var assignDeviceInfo = new(struct {
+			Name string `xml:"deviceID"`
+		})
+		if err := resp.Decode(assignDeviceInfo); err != nil {
+			return err
+		}
+		if assignDeviceInfo.Name != name {
+			return rest.ErrBadRequest
+		}
+		return mx.Stop
+	}, mx.ReadTimeout, "AssignDeviceInfo")
 }
 
 // SetCallMode устанавливает режим звонка.
