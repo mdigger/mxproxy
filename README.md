@@ -763,17 +763,6 @@ Authorization: Bearer <token>
 
 Позволяет заблокировать звонок.
 
-В ответ возвращаются данные о звонке:
-
-```json
-{
-    "callId": 123,
-    "deviceId": "1049",
-    "cause": "normal",
-    "callTypeFlags": 137363459,
-    "cmdsAllowed": 376
-}
-```
 ## Разблокировка звонка
 
 ```http

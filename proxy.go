@@ -223,6 +223,24 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				cleared.Type = "ConnectionCleared"
 				p.push.Send(conn.Login, cleared) // отсылаем уведомление
 				ctxlog.Info("connection cleared call", "id", cleared.CallID)
+			case "HeldEvent": // блокировка звонка
+				var held = new(HeldEvent)
+				if err := resp.Decode(held); err != nil {
+					return err
+				}
+				held.Timestamp = time.Now().Unix()
+				held.Type = "HeldEvent"
+				p.push.Send(conn.Login, held) // отсылаем уведомление
+				ctxlog.Info("held call", "id", held.CallID)
+			case "RetrievedEvent": // разблокировка звонка
+				var retrived = new(HeldEvent)
+				if err := resp.Decode(retrived); err != nil {
+					return err
+				}
+				retrived.Timestamp = time.Now().Unix()
+				retrived.Type = "RetrievedEvent"
+				p.push.Send(conn.Login, retrived) // отсылаем уведомление
+				ctxlog.Info("retrieved call", "id", retrived.CallID)
 			case "MailIncomingReadyEvent": // новое голосовое сообщение
 				var vmail = new(MailIncomingReadyEvent)
 				if err := resp.Decode(vmail); err != nil {
@@ -240,7 +258,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			}
 			return nil
 		}, "DeliveredEvent", "MailIncomingReadyEvent", "EstablishedEvent",
-			"ConnectionClearedEvent")
+			"ConnectionClearedEvent", "HeldEvent", "RetrievedEvent")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
@@ -329,6 +347,30 @@ type ConnectionClearedEvent struct {
 	DeviceID        string `xml:"droppedConnection>deviceID" json:"deviceId"`
 	ReleasingDevice string `xml:"releasingDevice>deviceIdentifier" json:"releasingDevice"`
 	Cause           string `xml:"cause" json:"cause"`
+	Timestamp       int64  `xml:"-" json:"timestamp"`
+}
+
+// HeldEvent описывает событие о блокировке звонка.
+type HeldEvent struct {
+	Type            string `xml:"-" json:"type"`
+	CallID          int64  `xml:"heldConnection>callID" json:"callId"`
+	DeviceID        string `xml:"heldConnection>deviceID" json:"deviceId"`
+	ReleasingDevice string `xml:"holdingDevice>deviceIdentifier" json:"releasingDevice"`
+	Cause           string `xml:"cause" json:"cause"`
+	CallTypeFlags   uint32 `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
+	CmdsAllowed     uint32 `xml:"cmdsAllowed" json:"cmdsAllowed,omitempty"`
+	Timestamp       int64  `xml:"-" json:"timestamp"`
+}
+
+// RetrievedEvent описывает событие о разблокировке звонка.
+type RetrievedEvent struct {
+	Type            string `xml:"-" json:"type"`
+	CallID          int64  `xml:"retrievedConnection>callID" json:"callId"`
+	DeviceID        string `xml:"retrievedConnection>deviceID" json:"deviceId"`
+	ReleasingDevice string `xml:"retrievingDevice>deviceIdentifier" json:"releasingDevice"`
+	Cause           string `xml:"cause" json:"cause"`
+	CallTypeFlags   uint32 `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
+	CmdsAllowed     uint32 `xml:"cmdsAllowed" json:"cmdsAllowed,omitempty"`
 	Timestamp       int64  `xml:"-" json:"timestamp"`
 }
 
@@ -669,11 +711,12 @@ func (p *Proxy) CallHold(c *rest.Context) error {
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	resp, err := conn.CallHold(callID)
-	if err != nil {
-		return err
-	}
-	return c.Write(rest.JSON{"callHold": resp})
+	return conn.CallHold(callID)
+	// resp, err := conn.CallHold(callID)
+	// if err != nil {
+	// 	return err
+	// }
+	// return c.Write(rest.JSON{"callHold": resp})
 }
 
 // CallUnHold разблокирует звонок.

@@ -393,43 +393,56 @@ func (c *MXConn) ClearConnection(callID int64) error {
 	return err
 }
 
-// HeldEvent описывает ответ при блокировке звонка.
-type HeldEvent struct {
-	CallID        int64  `xml:"heldConnection>callID" json:"callId"`
-	DeviceID      string `xml:"heldConnection>deviceID" json:"deviceId"`
-	Cause         string `xml:"cause" json:"cause"`
-	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
-	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
-}
-
 // CallHold подвешивает звонок.
-func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
-	if _, err := c.SendWithResponse(&struct {
+func (c *MXConn) CallHold(callID int64) error {
+	_, err := c.SendWithResponse(&struct {
 		XMLName  xml.Name `xml:"HoldCall"`
 		CallID   int64    `xml:"callToBeHeld>callID"`
 		DeviceID string   `xml:"callToBeHeld>deviceID"`
 	}{
 		CallID:   callID,
 		DeviceID: c.Ext,
-	}); err != nil {
-		return nil, err
-	}
-	// разбираем реальный ответ
-	var held = new(HeldEvent)
-	err := c.HandleWait(func(resp *mx.Response) error {
-		if err := resp.Decode(held); err != nil {
-			return err
-		}
-		if held.CallID != callID {
-			return nil
-		}
-		return mx.Stop
-	}, mx.ReadTimeout, "HeldEvent")
-	if err != nil {
-		return nil, err
-	}
-	return held, nil
+	})
+	return err
 }
+
+// // HeldEvent описывает ответ при блокировке звонка.
+// type HeldEvent struct {
+// 	CallID        int64  `xml:"heldConnection>callID" json:"callId"`
+// 	DeviceID      string `xml:"heldConnection>deviceID" json:"deviceId"`
+// 	Cause         string `xml:"cause" json:"cause"`
+// 	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
+// 	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
+// }
+
+// // CallHold подвешивает звонок.
+// func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
+// 	if _, err := c.SendWithResponse(&struct {
+// 		XMLName  xml.Name `xml:"HoldCall"`
+// 		CallID   int64    `xml:"callToBeHeld>callID"`
+// 		DeviceID string   `xml:"callToBeHeld>deviceID"`
+// 	}{
+// 		CallID:   callID,
+// 		DeviceID: c.Ext,
+// 	}); err != nil {
+// 		return nil, err
+// 	}
+// 	// разбираем реальный ответ
+// 	var held = new(HeldEvent)
+// 	err := c.HandleWait(func(resp *mx.Response) error {
+// 		if err := resp.Decode(held); err != nil {
+// 			return err
+// 		}
+// 		if held.CallID != callID {
+// 			return nil
+// 		}
+// 		return mx.Stop
+// 	}, mx.ReadTimeout, "HeldEvent")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return held, nil
+// }
 
 // // RetrievedEvent описывает ответ при разблокировке звонка.
 // type RetrievedEvent struct {
