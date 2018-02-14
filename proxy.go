@@ -233,7 +233,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				p.push.Send(conn.Login, held) // отсылаем уведомление
 				ctxlog.Info("held call", "id", held.CallID)
 			case "RetrievedEvent": // разблокировка звонка
-				var retrived = new(HeldEvent)
+				var retrived = new(RetrievedEvent)
 				if err := resp.Decode(retrived); err != nil {
 					return err
 				}
