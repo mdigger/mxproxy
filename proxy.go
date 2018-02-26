@@ -935,6 +935,9 @@ func (p *Proxy) ConferenceCreate(c *rest.Context) error {
 	if err = c.Bind(params); err != nil {
 		return err
 	}
+	if params.OwnerID == 0 {
+		params.OwnerID = conn.JID
+	}
 	params, err = conn.ConferenceCreate(params)
 	if err != nil {
 		return err
@@ -954,6 +957,9 @@ func (p *Proxy) ConferenceUpdate(c *rest.Context) error {
 		return err
 	}
 	params.ID = c.Param("id") // подменяем идентификатор
+	if params.OwnerID == 0 {
+		params.OwnerID = conn.JID
+	}
 	params, err = conn.ConferenceUpdate(params)
 	if err != nil {
 		return err

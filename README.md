@@ -882,6 +882,107 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
+## Серверная информация о конференция
+
+```http
+GET /conferences/info HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Возвращает настройки сервера конференций:
+
+```json
+{
+    "conferences": {
+        "ext": "",
+        "did": "",
+        "subject": "Conference Call: %Date% @ %Time% - %Subject%",
+        "body": "Please join my conference call\n\nSubject: %Subject%\n\nDate: %Date%\nTime: %Time% %Timezone%\nDuration: %Duration%\n\nAt the scheduled date and time please call - %DID%\nInternal participants please call - %Extension%-%ID%\n\nIf prompted, enter the following Conference ID: %ID%, followed by # key.",
+        "meeting": "View the MXmeeting web conference session at: http://\u003cinsert your domain name here\u003e/join?id=%ID%"
+    }
+}
+```
+
+## Список конференций
+
+```http
+GET /conferences HTTP/1.1
+Authorization: Bearer <token>
+```
+
+Возвращает список зарегистрированных конференций:
+
+```json
+{
+    "conferences": [
+        {
+            "Id": "",
+            "ownerId": 0,
+            "name": "",
+            "accessId": 0,
+            "type": "",
+            "startDate": 0,
+            "duration": 0,
+            "waitForOwner": false,
+            "delOnOwnerLeave": false,
+            "ws": "",
+            "wsType": ""
+        }
+    ]
+}
+```
+
+## Удаление конференции
+
+```http
+DELETE /conferences/<id> HTTP/1.1
+Authorization: Bearer <token>
+```
+
+## Создание конференции
+
+```http
+POST /conferences HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{
+  "Id": "",
+  "ownerId": 43892779647572507,
+  "name": "Test Conf",
+  "accessId": 47281964,
+  "type": "Once",
+  "startDate": 1516021200,
+  "duration": 30,
+  "waitForOwner": false,
+  "delOnOwnerLeave": false,
+  "ws": "None",
+  "wsType": "Undefined"
+}
+```
+
+## Изменение конференции
+
+```http
+PUT /conferences/<id> HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{
+  "Id": "",
+  "ownerId": 43892779647572507,
+  "name": "Test Conf",
+  "accessId": 47281964,
+  "type": "Once",
+  "startDate": 1516021200,
+  "duration": 30,
+  "waitForOwner": false,
+  "delOnOwnerLeave": false,
+  "ws": "None",
+  "wsType": "Undefined"
+}
+```
+
 ## Регистрация токена устройства
 
 ```http
