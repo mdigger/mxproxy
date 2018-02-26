@@ -116,7 +116,7 @@ func (c *MXConn) ConferenceList() ([]*Conference, error) {
 		return nil, err
 	}
 	var result = new(struct {
-		Conferences []*Conference
+		Conferences []*Conference `xml:"conferences"`
 	})
 	if err = resp.Decode(result); err != nil {
 		return nil, err
