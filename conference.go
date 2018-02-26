@@ -43,3 +43,25 @@ func (c *MXConn) ConferenceCreate(params *Conference) (*Conference, error) {
 	}
 	return params, nil
 }
+
+// ConferenceUpdate изменяет информацю о конференции.
+func (c *MXConn) ConferenceUpdate(params *Conference) (*Conference, error) {
+	if _, err := c.SendWithResponse(&struct {
+		XMLName xml.Name `xml:"UpdateConference"`
+		*Conference
+	}{
+		Conference: params,
+	}); err != nil {
+		return nil, err
+	}
+	err := c.HandleWait(func(resp *mx.Response) error {
+		if err := resp.Decode(params); err != nil {
+			return err
+		}
+		return mx.Stop
+	}, mx.ReadTimeout, "ConfUpdEvent")
+	if err != nil {
+		return nil, err
+	}
+	return params, nil
+}
