@@ -98,6 +98,10 @@ func main() {
 	mux.Handle("DELETE", "/voicemails/:id", proxy.DeleteVoicemail)
 	mux.Handle("PATCH", "/voicemails/:id", proxy.PatchVoiceMail)
 
+	mux.Handle("GET", "/conferences", proxy.ConferenceList)
+	mux.Handle("POST", "/conferences", proxy.ConferenceCreate)
+	mux.Handle("DELETE", "/conferences/:id", proxy.ConferenceDelete)
+
 	mux.Handle("PUT", "/tokens/:type/:topic/:token", proxy.Token)
 	mux.Handle("DELETE", "/tokens/:type/:topic/:token", proxy.Token)
 

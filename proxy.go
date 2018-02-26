@@ -895,3 +895,68 @@ func (p *Proxy) Services(c *rest.Context) error {
 	}
 	return c.Write(rest.JSON{"services": list})
 }
+
+// ConferenceList возвращает список конференций.
+func (p *Proxy) ConferenceList(c *rest.Context) error {
+	conn, err := p.getConnection(c)
+	if err != nil {
+		return err
+	}
+	list, err := conn.ConferenceList()
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"conferences": list})
+}
+
+// ConferenceDelete удаляет конференцию.
+func (p *Proxy) ConferenceDelete(c *rest.Context) error {
+	conn, err := p.getConnection(c)
+	if err != nil {
+		return err
+	}
+	if err = conn.ConferenceDelete(c.Param("id")); err != nil {
+		if _, ok := err.(*mx.CSTAError); ok {
+			return rest.ErrNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+// ConferenceCreate создает новую конференцию.
+func (p *Proxy) ConferenceCreate(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(Conference)
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	params, err = conn.ConferenceCreate(params)
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"conference": params})
+}
+
+// ConferenceUpdate изменяет информацю о конференции.
+func (p *Proxy) ConferenceUpdate(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(Conference)
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	params.ID = c.Param("id") // подменяем идентификатор
+	params, err = conn.ConferenceUpdate(params)
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"conference": params})
+}
