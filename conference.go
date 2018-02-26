@@ -65,3 +65,18 @@ func (c *MXConn) ConferenceUpdate(params *Conference) (*Conference, error) {
 	}
 	return params, nil
 }
+
+// ConferenceDelete удаляет конфиренцию.
+func (c *MXConn) ConferenceDelete(id string) error {
+	if _, err := c.SendWithResponse(&struct {
+		XMLName xml.Name `xml:"DeleteConference"`
+		ID      string   `xml:"confId"`
+	}{
+		ID: id,
+	}); err != nil {
+		return err
+	}
+	return c.HandleWait(func(resp *mx.Response) error {
+		return mx.Stop
+	}, mx.ReadTimeout, "ConfDelEvent")
+}
