@@ -102,3 +102,24 @@ func (c *MXConn) ConferenceServerInfo(id string) (*ServerConferenceInfo, error) 
 	}
 	return result, nil
 }
+
+// ConferenceList возвращает список конференций.
+func (c *MXConn) ConferenceList() ([]*Conference, error) {
+	resp, err := c.SendWithResponse(struct {
+		Name    xml.Name `xml:"GetConfList"`
+		OwnerID mx.JID   `xml:"ownerId"`
+		Iter    int32    `xml:"iter"`
+	}{
+		OwnerID: c.JID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var result = new(struct {
+		Conferences []*Conference
+	})
+	if err = resp.Decode(result); err != nil {
+		return nil, err
+	}
+	return result.Conferences, nil
+}
