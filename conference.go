@@ -80,3 +80,25 @@ func (c *MXConn) ConferenceDelete(id string) error {
 		return mx.Stop
 	}, mx.ReadTimeout, "ConfDelEvent")
 }
+
+// ServerConferenceInfo описывает информацию с ответом о серверной конференции.
+type ServerConferenceInfo struct {
+	Ext     string `xml:"extension" json:"ext"`
+	DID     string `xml:"DID" json:"did"`
+	Subject string `xml:"inviteSubject" json:"subject"`
+	Body    string `xml:"inviteBody" json:"body"`
+	Meeting string `xml:"inviteMXmeeting" json:"meeting"`
+}
+
+// ConferenceServerInfo возвращает серверную информацию для создания конференции.
+func (c *MXConn) ConferenceServerInfo(id string) (*ServerConferenceInfo, error) {
+	resp, err := c.SendWithResponse("<GetConfServerInfo/>")
+	if err != nil {
+		return nil, err
+	}
+	var result = new(ServerConferenceInfo)
+	if err = resp.Decode(result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
