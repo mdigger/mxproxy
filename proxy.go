@@ -960,3 +960,16 @@ func (p *Proxy) ConferenceUpdate(c *rest.Context) error {
 	}
 	return c.Write(rest.JSON{"conference": params})
 }
+
+// ConferenceInfo возвращает настройки конференций.
+func (p *Proxy) ConferenceInfo(c *rest.Context) error {
+	conn, err := p.getConnection(c)
+	if err != nil {
+		return err
+	}
+	list, err := conn.ConferenceServerInfo()
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"conferences": list})
+}

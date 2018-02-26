@@ -100,7 +100,9 @@ func main() {
 
 	mux.Handle("GET", "/conferences", proxy.ConferenceList)
 	mux.Handle("POST", "/conferences", proxy.ConferenceCreate)
+	mux.Handle("PUT", "/conferences/:id", proxy.ConferenceUpdate)
 	mux.Handle("DELETE", "/conferences/:id", proxy.ConferenceDelete)
+	mux.Handle("GET", "/conferences/info", proxy.ConferenceInfo)
 
 	mux.Handle("PUT", "/tokens/:type/:topic/:token", proxy.Token)
 	mux.Handle("DELETE", "/tokens/:type/:topic/:token", proxy.Token)

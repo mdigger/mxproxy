@@ -91,7 +91,7 @@ type ServerConferenceInfo struct {
 }
 
 // ConferenceServerInfo возвращает серверную информацию для создания конференции.
-func (c *MXConn) ConferenceServerInfo(id string) (*ServerConferenceInfo, error) {
+func (c *MXConn) ConferenceServerInfo() (*ServerConferenceInfo, error) {
 	resp, err := c.SendWithResponse("<GetConfServerInfo/>")
 	if err != nil {
 		return nil, err
