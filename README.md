@@ -1044,9 +1044,9 @@ curl localhost:8043/users
 {
     "users": {
         "dmitrys@xyzrd.com": {
-            "host": "89.185.246.134:7778",
+            "host": "10.0.0.1:7778",
             "login": "dmitrys",
-            "password": "78561"
+            "password": "xxxxx"
         }
     }
 }
