@@ -348,7 +348,9 @@ func (c *MXConn) SIPAnswer(callID int64, deviceID string, timeout time.Duration)
 	if deviceID != "" {
 		// отправляем команду для ассоциации устройства по имени
 		if err := c.AssignDevice(deviceID); err != nil {
-			return err
+			if err != mx.ErrTimeout {
+				return err
+			}
 		}
 	}
 	// теперь отправляем команду на подтверждение звонка
