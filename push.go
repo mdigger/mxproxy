@@ -244,9 +244,27 @@ func (p *Push) LoadCertificate(filename, password string) error {
 		return err
 	}
 	if _, err = x509Cert.Verify(x509.VerifyOptions{}); err != nil {
-		if _, ok := err.(x509.UnknownAuthorityError); !ok {
+		switch e := err.(type) {
+		case x509.CertificateInvalidError:
+			switch e.Reason {
+			case x509.Expired:
+				return err
+			case x509.IncompatibleUsage:
+				// Apple cert fail on go 1.10
+				break
+			default:
+				return err
+			}
+		case x509.UnknownAuthorityError:
+			// Apple cert isn't in the cert pool
+			// ignoring this error
+			break
+		default:
 			return err
 		}
+		// if _, ok := err.(x509.UnknownAuthorityError); !ok {
+		// 	return err
+		// }
 	}
 	var topicID string
 	for _, attr := range x509Cert.Subject.Names {
