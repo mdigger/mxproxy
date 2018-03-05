@@ -302,7 +302,9 @@ func (c *MXConn) MakeCall(from, to, deviceID string) (*MakeCallResponse, error) 
 	if deviceID != "" {
 		// отправляем команду для ассоциации устройства по имени
 		if err := c.AssignDevice(deviceID); err != nil {
-			return nil, err
+			if err != mx.ErrTimeout {
+				return nil, err
+			}
 		}
 	}
 	if from == "" {
