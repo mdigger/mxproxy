@@ -20,6 +20,7 @@ import (
 
 // Proxy описывает сервис проксирования запросов к серверу MX.
 type Proxy struct {
+	adminWeb        string            // адрес административного сервера
 	provisioningURL string            // адрес сервера провижининга
 	appsAuth        map[string]string // связка client-id:secret
 	store           *Store            // хранилище данных
@@ -45,9 +46,11 @@ func InitProxy() (proxy *Proxy, err error) {
 			TokenTTL   string `toml:"tokenTTL"`   // время жизни токена
 			SingKeyTTL string `toml:"signKeyTTL"` // время жизни ключа
 		} `toml:"jwt"`
+		AdminWeb string `toml:"adminWeb"`
 	}{
 		ProvisioningURL: "https://config.connector73.net/config",
 		DBName:          lowerAppName + ".db",
+		AdminWeb:        "localhost:8043",
 	}
 	// разбираем конфигурационный файл, если он существует
 	log.Info("loading configuration", "filename", configName)
@@ -121,6 +124,7 @@ func InitProxy() (proxy *Proxy, err error) {
 	}
 	// инициализируем прокси
 	proxy = &Proxy{
+		adminWeb:        config.AdminWeb,
 		provisioningURL: config.ProvisioningURL,
 		appsAuth:        config.AppsAuth,
 		store:           store,
