@@ -163,6 +163,78 @@ func main() {
 	})
 	startHTTPServer(mux, host) // запускаем HTTP сервер
 
+	// запускаем административный веб
+	var muxAdmin = &rest.ServeMux{
+		Headers: map[string]string{
+			"Server": agent, // ¯\_(ツ)_/¯
+		},
+		Logger: log.New("http admin"),
+	}
+	muxAdmin.Handles(rest.Paths{
+		// отдает список запущенных соединений
+		"/connections": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				var list []string
+				proxy.conns.Range(func(login, _ interface{}) bool {
+					list = append(list, login.(string))
+					return true
+				})
+				sort.Strings(list)
+				return c.Write(rest.JSON{"connections": list})
+			},
+		},
+		// список зарегистрированных приложений для авторизации OAuth2
+		"/apps": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				var list = make(map[string]string, len(proxy.appsAuth))
+				for appName, secret := range proxy.appsAuth {
+					list[appName] = secret
+				}
+				return c.Write(rest.JSON{"apps": list})
+			},
+		},
+		// список зарегистрированных пользователей
+		"/users": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				return c.Write(
+					rest.JSON{"users": proxy.store.section(bucketUsers)})
+			},
+			"POST": func(c *rest.Context) error {
+				var login = c.Form("login")
+				// останавливаем соединение
+				if conn, ok := proxy.conns.Load(login); ok {
+					proxy.conns.Delete(login) // удаляем из списка
+					conn.(*MXConn).Close()    // останавливаем соединение
+				}
+				// удаляем из хранилища
+				if err = proxy.store.RemoveUser(login); err != nil {
+					return err
+				}
+				log.Info("mx user disconnected", "login", login)
+				return c.Write(rest.JSON{"userLogout": login})
+			},
+		},
+		// список зарегистрированных токенов устройств
+		"/tokens": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				return c.Write(
+					rest.JSON{"tokens": proxy.store.section(bucketTokens)})
+			},
+		},
+		// "/log": rest.Methods{
+		// 	"GET": rest.File(logFile),
+		// },
+	})
+	var serverAdmin = &http.Server{
+		Addr:         "localhost:8043",
+		Handler:      muxAdmin,
+		ReadTimeout:  time.Second * 10,
+		WriteTimeout: time.Minute * 5,
+		ErrorLog:     log.StdLog(log.WARN, "http admin"),
+	}
+	log.Info("starting admin http server", "address", serverAdmin.Addr)
+	go serverAdmin.ListenAndServe()
+
 	monitorSignals(os.Interrupt, os.Kill) // ожидаем сигнала остановки
 }
 

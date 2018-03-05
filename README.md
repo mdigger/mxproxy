@@ -1025,3 +1025,35 @@ Authorization: Bearer <token>
 [voip.fcm]
   "app" = "AAAA0bHpCVQ:APA9...p7Yge"
 ```
+
+## Административный веб
+
+Административный веб запускается по адресу `http://localhost:8043`.
+
+На нем доступны следующие данные:
+
+- `GET /apps` - возвращает список идентификаторов зарегистрированных приложений
+- `GET /connections` - возвращает список активных соединений с серверами МХ
+- `GET /tokens` - возвращает список зарегистрированных токенов устройств
+- `GET /users` - возвращает список зарегистрированных пользователей
+- `POST /users` - удаляет пользователя и разрегистрирует его токены; логин пользователя передается в виде значения поля формы `login`
+
+```shell
+curl localhost:8043/users
+{
+    "users": {
+        "dmitrys@xyzrd.com": {
+            "host": "89.185.246.134:7778",
+            "login": "dmitrys",
+            "password": "78561"
+        }
+    }
+}
+```
+
+```shell
+curl localhost:8043/users -d login=dmitrys@xyzrd.com
+{
+    "userLogout": "dmitrys@xyzrd.com"
+}
+```
