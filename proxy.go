@@ -651,13 +651,14 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 		CallID  int64  `json:"callId" form:"callId"`
 		Device  string `json:"device" form:"device"`
 		Timeout uint16 `json:"timeout" form:"timeout"`
+		Assign  bool   `json:"assign" form:"assign"`
 	}{
 		Timeout: 30,
 	}
 	if err = c.Bind(params); err != nil {
 		return err
 	}
-	if err = conn.SIPAnswer(callID, params.Device,
+	if err = conn.SIPAnswer(callID, params.Device, params.Assign,
 		time.Duration(params.Timeout)*time.Second); err != nil {
 		return err
 	}

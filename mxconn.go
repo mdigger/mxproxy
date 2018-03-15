@@ -346,8 +346,8 @@ type MakeCallResponse struct {
 }
 
 // SIPAnswer подтверждает прием звонка по SIP.
-func (c *MXConn) SIPAnswer(callID int64, deviceID string, timeout time.Duration) error {
-	if deviceID != "" {
+func (c *MXConn) SIPAnswer(callID int64, deviceID string, assign bool, timeout time.Duration) error {
+	if assign {
 		// отправляем команду для ассоциации устройства по имени
 		if err := c.AssignDevice(deviceID); err != nil {
 			if err != mx.ErrTimeout {
