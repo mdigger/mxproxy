@@ -710,7 +710,6 @@ Content-Type: application/json; charset=utf-8
 
 ```json
 {
-  "callId": 123,
   "device": "sipPhone",
   "timeout": 30,
   "assign": true
