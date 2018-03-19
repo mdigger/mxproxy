@@ -703,7 +703,11 @@ func (p *Proxy) ClearConnection(c *rest.Context) error {
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	return conn.ClearConnection(callID)
+	cleared, err := conn.ClearConnection(callID)
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"connectionCleared": cleared})
 }
 
 // CallHold блокирует звонок.
@@ -716,12 +720,11 @@ func (p *Proxy) CallHold(c *rest.Context) error {
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	return conn.CallHold(callID)
-	// resp, err := conn.CallHold(callID)
-	// if err != nil {
-	// 	return err
-	// }
-	// return c.Write(rest.JSON{"callHold": resp})
+	held, err := conn.CallHold(callID)
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"held": held})
 }
 
 // CallUnHold разблокирует звонок.
@@ -734,7 +737,11 @@ func (p *Proxy) CallUnHold(c *rest.Context) error {
 	if err != nil {
 		return rest.ErrNotFound
 	}
-	return conn.CallUnHold(callID)
+	retrieved, err := conn.CallUnHold(callID)
+	if err != nil {
+		return err
+	}
+	return c.Write(rest.JSON{"retrieved": retrieved})
 }
 
 // Voicemails отдает список гол����совых сообщений пользователя.

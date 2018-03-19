@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/xml"
+	"fmt"
 	"mime"
 	"sort"
 	"time"
@@ -245,7 +246,7 @@ func (c *MXConn) AssignDevice(name string) error {
 		Type string `xml:"type,attr"`
 		Name string `xml:",chardata"`
 	}
-	if _, err := c.SendWithResponse(&struct {
+	resp, err := c.SendAndWait(&struct {
 		XMLName xml.Name `xml:"AssignDevice"`
 		Device  device   `xml:"deviceID"`
 	}{
@@ -253,22 +254,20 @@ func (c *MXConn) AssignDevice(name string) error {
 			Type: "device",
 			Name: name,
 		},
-	}); err != nil {
+	}, "AssignDeviceInfo")
+	if err != nil {
 		return err
 	}
-	// дожидаемся AssignDeviceInfo
-	return c.HandleWait(func(resp *mx.Response) error {
-		var assignDeviceInfo = new(struct {
-			Name string `xml:"deviceID"`
-		})
-		if err := resp.Decode(assignDeviceInfo); err != nil {
-			return err
-		}
-		if assignDeviceInfo.Name != name {
-			return rest.ErrBadRequest
-		}
-		return mx.Stop
-	}, mx.ReadTimeout, "AssignDeviceInfo")
+	var assignDeviceInfo = new(struct {
+		Name string `xml:"deviceID"`
+	})
+	if err := resp.Decode(assignDeviceInfo); err != nil {
+		return err
+	}
+	if assignDeviceInfo.Name != name {
+		return rest.NewError(400, fmt.Sprintf("bad device name %q", assignDeviceInfo.Name)) //ErrBadRequest
+	}
+	return nil
 }
 
 // SetCallMode устанавливает режим звонка.
@@ -302,9 +301,9 @@ func (c *MXConn) MakeCall(from, to, deviceID string) (*MakeCallResponse, error) 
 	if deviceID != "" {
 		// отправляем команду для ассоциации устройства по имени
 		if err := c.AssignDevice(deviceID); err != nil {
-			if err != mx.ErrTimeout {
-				return nil, err
-			}
+			// if err != mx.ErrTimeout {
+			return nil, err
+			// }
 		}
 	}
 	if from == "" {
@@ -350,20 +349,20 @@ func (c *MXConn) SIPAnswer(callID int64, deviceID string, assign bool, timeout t
 	if assign {
 		// отправляем команду для ассоциации устройства по имени
 		if err := c.AssignDevice(deviceID); err != nil {
-			if err != mx.ErrTimeout {
-				return err
-			}
+			// if err != mx.ErrTimeout {
+			return err
+			// }
 		}
 	}
 	// теперь отправляем команду на подтверждение звонка
-	_, err := c.SendWithResponseTimeout(&struct {
+	_, err := c.SendWithResponse(&struct {
 		XMLName  xml.Name `xml:"AnswerCall"`
 		CallID   int64    `xml:"callToBeAnswered>callID"`
 		DeviceID string   `xml:"callToBeAnswered>deviceID"`
 	}{
 		CallID:   callID,
 		DeviceID: deviceID,
-	}, timeout)
+	})
 	return err
 }
 
@@ -384,90 +383,64 @@ func (c *MXConn) Transfer(callID int64, deviceID, to string) error {
 }
 
 // ClearConnection сбрасывает звонок.
-func (c *MXConn) ClearConnection(callID int64) error {
+func (c *MXConn) ClearConnection(callID int64) (*ConnectionClearedEvent, error) {
 	// теперь отправляем команду на подтверждение звонка
-	_, err := c.SendWithResponse(&struct {
+	resp, err := c.SendAndWait(&struct {
 		XMLName  xml.Name `xml:"ClearConnection"`
 		CallID   int64    `xml:"connectionToBeCleared>callID"`
 		DeviceID string   `xml:"connectionToBeCleared>deviceID"`
 	}{
 		CallID:   callID,
 		DeviceID: c.Ext,
-	})
-	return err
+	}, "ConnectionClearedEvent")
+	if err != nil {
+		return nil, err
+	}
+	var cleared = new(ConnectionClearedEvent)
+	if err := resp.Decode(cleared); err != nil {
+		return nil, err
+	}
+	return cleared, nil
 }
 
 // CallHold подвешивает звонок.
-func (c *MXConn) CallHold(callID int64) error {
-	_, err := c.SendWithResponse(&struct {
+func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
+	resp, err := c.SendAndWait(&struct {
 		XMLName  xml.Name `xml:"HoldCall"`
 		CallID   int64    `xml:"callToBeHeld>callID"`
 		DeviceID string   `xml:"callToBeHeld>deviceID"`
 	}{
 		CallID:   callID,
 		DeviceID: c.Ext,
-	})
-	return err
+	}, "HeldEvent")
+	if err != nil {
+		return nil, err
+	}
+	var held = new(HeldEvent)
+	if err := resp.Decode(held); err != nil {
+		return nil, err
+	}
+	return held, nil
 }
 
-// // HeldEvent описывает ответ при блокировке звонка.
-// type HeldEvent struct {
-// 	CallID        int64  `xml:"heldConnection>callID" json:"callId"`
-// 	DeviceID      string `xml:"heldConnection>deviceID" json:"deviceId"`
-// 	Cause         string `xml:"cause" json:"cause"`
-// 	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
-// 	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
-// }
-
-// // CallHold подвешивает звонок.
-// func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
-// 	if _, err := c.SendWithResponse(&struct {
-// 		XMLName  xml.Name `xml:"HoldCall"`
-// 		CallID   int64    `xml:"callToBeHeld>callID"`
-// 		DeviceID string   `xml:"callToBeHeld>deviceID"`
-// 	}{
-// 		CallID:   callID,
-// 		DeviceID: c.Ext,
-// 	}); err != nil {
-// 		return nil, err
-// 	}
-// 	// разбираем реальный ответ
-// 	var held = new(HeldEvent)
-// 	err := c.HandleWait(func(resp *mx.Response) error {
-// 		if err := resp.Decode(held); err != nil {
-// 			return err
-// 		}
-// 		if held.CallID != callID {
-// 			return nil
-// 		}
-// 		return mx.Stop
-// 	}, mx.ReadTimeout, "HeldEvent")
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return held, nil
-// }
-
-// // RetrievedEvent описывает ответ при разблокировке звонка.
-// type RetrievedEvent struct {
-// 	CallID        int64  `xml:"retrievedConnection>callID" json:"callId"`
-// 	DeviceID      string `xml:"retrievedConnection>deviceID" json:"deviceId"`
-// 	Cause         string `xml:"cause" json:"cause"`
-// 	CallTypeFlags int64  `xml:"callTypeFlags" json:"callTypeFlags"`
-// 	CmdsAllowed   int64  `xnl:"cmdsAllowed" json:"cmdsAllowed"`
-// }
-
 // CallUnHold разблокирует звонок.
-func (c *MXConn) CallUnHold(callID int64) error {
-	_, err := c.SendWithResponse(&struct {
-		XMLName  xml.Name `xml:"RetrieveCall"`
-		CallID   int64    `xml:"callToBeRetrieved>callID"`
-		DeviceID string   `xml:"callToBeRetrieved>deviceID"`
+func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
+	resp, err := c.SendAndWait(&struct {
+		XMLName  xml.Name `xml:"HoldCall"`
+		CallID   int64    `xml:"callToBeHeld>callID"`
+		DeviceID string   `xml:"callToBeHeld>deviceID"`
 	}{
 		CallID:   callID,
 		DeviceID: c.Ext,
-	})
-	return err
+	}, "RetrievedEvent")
+	if err != nil {
+		return nil, err
+	}
+	var retrived = new(RetrievedEvent)
+	if err := resp.Decode(retrived); err != nil {
+		return nil, err
+	}
+	return retrived, nil
 }
 
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
