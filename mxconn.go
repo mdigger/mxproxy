@@ -397,10 +397,13 @@ func (c *MXConn) ClearConnection(callID int64) (*ConnectionClearedEvent, error) 
 		return nil, err
 	}
 	var cleared = new(ConnectionClearedEvent)
-	if err := resp.Decode(cleared); err != nil {
-		return nil, err
+	if resp != nil {
+		if err := resp.Decode(cleared); err != nil {
+			return nil, err
+		}
+		return cleared, nil
 	}
-	return cleared, nil
+	return nil, rest.NewError(400, "empty mx response")
 }
 
 // CallHold подвешивает звонок.
@@ -417,10 +420,13 @@ func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
 		return nil, err
 	}
 	var held = new(HeldEvent)
-	if err := resp.Decode(held); err != nil {
-		return nil, err
+	if resp != nil {
+		if err := resp.Decode(held); err != nil {
+			return nil, err
+		}
+		return held, nil
 	}
-	return held, nil
+	return nil, rest.NewError(400, "empty mx response")
 }
 
 // CallUnHold разблокирует звонок.
@@ -437,10 +443,13 @@ func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 		return nil, err
 	}
 	var retrived = new(RetrievedEvent)
-	if err := resp.Decode(retrived); err != nil {
-		return nil, err
+	if resp != nil {
+		if err := resp.Decode(retrived); err != nil {
+			return nil, err
+		}
+		return retrived, nil
 	}
-	return retrived, nil
+	return nil, rest.NewError(400, "empty mx response")
 }
 
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
