@@ -218,6 +218,15 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				established.Type = "Established"
 				p.push.Send(conn.Login, established) // отсылаем уведомление
 				ctxlog.Info("established call", "id", established.CallID)
+			case "OriginatedEvent":
+				var originated = new(OriginatedEvent)
+				if err := resp.Decode(originated); err != nil {
+					return err
+				}
+				originated.Timestamp = time.Now().Unix()
+				originated.Type = "Originated"
+				p.push.Send(conn.Login, originated) // отсылаем уведомление
+				ctxlog.Info("originated call", "id", originated.CallID)
 			case "ConnectionClearedEvent": // окончание звонка
 				var cleared = new(ConnectionClearedEvent)
 				if err := resp.Decode(cleared); err != nil {
@@ -262,7 +271,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			}
 			return nil
 		}, "DeliveredEvent", "MailIncomingReadyEvent", "EstablishedEvent",
-			"ConnectionClearedEvent", "HeldEvent", "RetrievedEvent")
+			"OriginatedEvent", "ConnectionClearedEvent", "HeldEvent",
+			"RetrievedEvent")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
@@ -342,6 +352,19 @@ type EstablishedEvent struct {
 		Value string `xml:",chardata" json:"value,omitempty"`
 	} `xml:"cad,omitempty" json:"cads,omitempty"`
 	Timestamp int64 `xml:"-" json:"timestamp"`
+}
+
+// OriginatedEvent описывает собитие о входящем звонке.
+type OriginatedEvent struct {
+	Type          string `xml:"-" json:"type"`
+	CallID        int64  `xml:"originatedConnection>callID" json:"callId"`
+	DeviceID      string `xml:"originatedConnection>deviceID" json:"deviceId"`
+	CallingDevice string `xml:"callingDevice>deviceIdentifier" json:"callingDevice"`
+	CalledDevice  string `xml:"calledDevice>deviceIdentifier" json:"calledDevice"`
+	Cause         string `xml:"cause" json:"cause"`
+	CallTypeFlags uint32 `xml:"callTypeFlags" json:"callTypeFlags,omitempty"`
+	CmdsAllowed   uint32 `xml:"cmdsAllowed" json:"cmdsAllowed,omitempty"`
+	Timestamp     int64  `xml:"-" json:"timestamp"`
 }
 
 // ConnectionClearedEvent описывает событие о завершенном звонке.
