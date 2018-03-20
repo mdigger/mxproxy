@@ -426,9 +426,9 @@ func (c *MXConn) CallHold(callID int64) (*HeldEvent, error) {
 // CallUnHold разблокирует звонок.
 func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 	resp, err := c.SendAndWait(&struct {
-		XMLName  xml.Name `xml:"HoldCall"`
-		CallID   int64    `xml:"callToBeHeld>callID"`
-		DeviceID string   `xml:"callToBeHeld>deviceID"`
+		XMLName  xml.Name `xml:"RetrieveCall"`
+		CallID   int64    `xml:"callToBeRetrieved>callID"`
+		DeviceID string   `xml:"callToBeRetrieved>deviceID"`
 	}{
 		CallID:   callID,
 		DeviceID: c.Ext,
