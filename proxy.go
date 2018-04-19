@@ -216,8 +216,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(established); err != nil {
 					return err
 				}
-				// удалеяем информацию о входящем звонке
-				conn.Calls.Delete(established.CallID)
+				// сохраняем информацию о звонке
+				conn.Calls.Store(established.CallID, established)
 				established.Timestamp = time.Now().Unix()
 				established.Type = "Established"
 				p.push.Send(conn.Login, established) // отсылаем уведомление
@@ -236,7 +236,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(cleared); err != nil {
 					return err
 				}
-				// удалеяем информацию о входящем звонке
+				// удаляем информацию о входящем звонке
 				conn.Calls.Delete(cleared.CallID)
 				cleared.Timestamp = time.Now().Unix()
 				cleared.Type = "ConnectionCleared"
