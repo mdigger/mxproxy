@@ -199,6 +199,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(delivered); err != nil {
 					return err
 				}
+				// сохраняем информацию о входящем звонке
+				conn.Calls.Store(delivered.CallID, delivered)
 				// фильтруем события о звонках
 				if delivered.CalledDevice != conn.Ext &&
 					delivered.AlertingDevice != conn.Ext {
@@ -214,6 +216,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(established); err != nil {
 					return err
 				}
+				// удалеяем информацию о входящем звонке
+				conn.Calls.Delete(established.CallID)
 				established.Timestamp = time.Now().Unix()
 				established.Type = "Established"
 				p.push.Send(conn.Login, established) // отсылаем уведомление
@@ -232,6 +236,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(cleared); err != nil {
 					return err
 				}
+				// удалеяем информацию о входящем звонке
+				conn.Calls.Delete(cleared.CallID)
 				cleared.Timestamp = time.Now().Unix()
 				cleared.Type = "ConnectionCleared"
 				p.push.Send(conn.Login, cleared) // отсылаем уведомление
@@ -767,7 +773,24 @@ func (p *Proxy) CallUnHold(c *rest.Context) error {
 	return c.Write(rest.JSON{"retrieved": retrieved})
 }
 
-// Voicemails отдает список гол����совых сообщений пользователя.
+// CallInfo отдает информацию о звонке.
+func (p *Proxy) CallInfo(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return rest.ErrNotFound
+	}
+	callInfo, ok := conn.Calls.Load(callID)
+	if !ok {
+		return rest.ErrNotFound
+	}
+	return c.Write(rest.JSON{"callInfo": callInfo})
+}
+
+// Voicemails отдает список голосовых сообщений пользователя.
 func (p *Proxy) Voicemails(c *rest.Context) error {
 	conn, err := p.getConnection(c)
 	if err != nil {
