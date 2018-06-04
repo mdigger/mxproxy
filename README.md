@@ -1058,7 +1058,7 @@ Authorization: Bearer <token>
 [apps]
   client1 = "client-secret"
 [voip]
-  apnTTL = 210000000000 # 3.5 minute
+  apnTTL = "3m50s"
 [voip.apn]
   "certificate.p12" = "password"
 [voip.fcm]
