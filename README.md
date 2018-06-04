@@ -1019,6 +1019,35 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
+## Присоединение к конференции
+
+```http
+POST /conferences/<id> HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{
+    "accessId": 47281964,
+}
+```
+
+Пока возвращается только ошибка. В случае удачного выполнения команды ответ пустой. В дальнейшем будет расширено.
+
+
+## Создание конференции из звонка
+
+```http
+POST /calls/<id>/conference HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{
+    "ownerCallId": 43,
+}
+```
+
+Пока возвращается только ошибка. В случае удачного выполнения команды ответ пустой. В дальнейшем будет расширено.
+
 ## Регистрация токена устройства
 
 ```http

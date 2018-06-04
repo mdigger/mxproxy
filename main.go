@@ -93,6 +93,7 @@ func main() {
 	mux.Handle("PATCH", "/calls/:name", proxy.AssignDevice)
 	mux.Handle("PUT", "/calls/:id/hold", proxy.CallHold)
 	mux.Handle("PUT", "/calls/:id/unhold", proxy.CallUnHold)
+	mux.Handle("POST", "/calls/:id/conference", proxy.ConferenceCreateFromCall)
 
 	mux.Handle("GET", "/voicemails", proxy.Voicemails)
 	mux.Handle("GET", "/voicemails/:id", proxy.GetVoiceMailFile)
@@ -102,6 +103,7 @@ func main() {
 	mux.Handle("GET", "/conferences", proxy.ConferenceList)
 	mux.Handle("POST", "/conferences", proxy.ConferenceCreate)
 	mux.Handle("PUT", "/conferences/:id", proxy.ConferenceUpdate)
+	mux.Handle("POST", "/conferences/:id", proxy.ConferenceJoin)
 	mux.Handle("DELETE", "/conferences/:id", proxy.ConferenceDelete)
 	mux.Handle("GET", "/conferences/info", proxy.ConferenceInfo)
 

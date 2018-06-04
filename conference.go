@@ -123,3 +123,41 @@ func (c *MXConn) ConferenceList() ([]*Conference, error) {
 	}
 	return result.Conferences, nil
 }
+
+// ConferenceJoin позволяет присоединиться к конференции.
+func (c *MXConn) ConferenceJoin(id string, access int64) error {
+	if _, err := c.SendWithResponse(&struct {
+		XMLName xml.Name `xml:"JoinConf"`
+		ID      string   `xml:"callId"`
+		Access  int64    `xml:"accessId"`
+	}{
+		ID:     id,
+		Access: access,
+	}); err != nil {
+		return err
+	}
+	return nil
+	// return c.HandleWait(func(resp *mx.Response) error {
+	// 	return mx.Stop
+	// }, mx.ReadTimeout, "JoinConfEvent")
+}
+
+// ConferenceCreateFromCall инициализирует новую конференцию из звонка.
+func (c *MXConn) ConferenceCreateFromCall(id, ocid int64) error {
+	if ocid == 0 {
+		ocid = id
+	}
+	if _, err := c.SendWithResponse(&struct {
+		XMLName xml.Name `xml:"CreateConfFromCalls"`
+		ID      int64    `xml:"callId"`
+		Owner   mx.JID   `xml:"ownerId"`
+		OCID    int64    `xml:"ownerCallId"`
+	}{
+		ID:    id,
+		Owner: c.JID,
+		OCID:  ocid,
+	}); err != nil {
+		return err
+	}
+	return nil
+}

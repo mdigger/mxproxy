@@ -1049,3 +1049,40 @@ func (p *Proxy) ConferenceInfo(c *rest.Context) error {
 	}
 	return c.Write(rest.JSON{"conferences": list})
 }
+
+// ConferenceJoin позволяет присоединиться к конференции.
+func (p *Proxy) ConferenceJoin(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(struct {
+		AccessID int64 `json:"accessId" form:"accessId"`
+	})
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	ID := c.Param("id")
+	return conn.ConferenceJoin(ID, params.AccessID)
+}
+
+// ConferenceCreateFromCall создает конференцию из звонка.
+func (p *Proxy) ConferenceCreateFromCall(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(struct {
+		OwnerCallID int64 `json:"ownerCallId" form:"ownerCallId"`
+	})
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.Error(http.StatusNotFound, err.Error())
+	}
+	return conn.ConferenceCreateFromCall(callID, params.OwnerCallID)
+}
