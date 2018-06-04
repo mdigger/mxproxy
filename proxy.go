@@ -39,8 +39,9 @@ func InitProxy() (proxy *Proxy, err error) {
 		DBName          string            `toml:"dbName"`
 		LogName         string            `toml:"logName"`
 		VoIP            struct {
-			APN map[string]string `toml:"apn"`
-			FCM map[string]string `toml:"fcm"`
+			APNTTL time.Duration     `toml:"apnTTL"`
+			APN    map[string]string `toml:"apn"`
+			FCM    map[string]string `toml:"fcm"`
 		} `toml:"voip"`
 		JWT struct {
 			TokenTTL   string `toml:"tokenTTL"`   // время жизни токена
@@ -113,6 +114,11 @@ func InitProxy() (proxy *Proxy, err error) {
 		apns:  make(map[string]*http.Client, len(config.VoIP.APN)),
 		fcm:   config.VoIP.FCM,
 	}
+	// изменяем время жизни пуш-клиентов для APNS, если они указаны в конфиге
+	if config.VoIP.APNTTL != 0 {
+		PushTimeout = config.VoIP.APNTTL
+	}
+	log.Info("apn client idle", "timeout", PushTimeout)
 	for filename, password := range config.VoIP.APN {
 		if err := push.LoadCertificate(filename, password); err != nil {
 			log.Error("apn certificate error", "filename", filename, "error", err)
