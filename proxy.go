@@ -1086,3 +1086,45 @@ func (p *Proxy) ConferenceCreateFromCall(c *rest.Context) error {
 	}
 	return conn.ConferenceCreateFromCall(callID, params.OwnerCallID)
 }
+
+// CallRecording инициализирует запись звонка.
+func (p *Proxy) CallRecording(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(struct {
+		DeviceID string `json:"deviceID" form:"deviceID"`
+		GroupID  string `json:"groupID" form:"groupID"`
+	})
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.Error(http.StatusNotFound, err.Error())
+	}
+	return conn.CallRecording(callID, params.DeviceID, params.GroupID)
+}
+
+// CallRecordingStop останавливает запись звонка.
+func (p *Proxy) CallRecordingStop(c *rest.Context) error {
+	conn, err := p.getConnection(c) // проверяем токен и получаем соединение
+	if err != nil {
+		return err
+	}
+	// инициализируем параметры по умолчанию и разбираем запрос
+	var params = new(struct {
+		DeviceID string `json:"deviceID" form:"deviceID"`
+		GroupID  string `json:"groupID" form:"groupID"`
+	})
+	if err = c.Bind(params); err != nil {
+		return err
+	}
+	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.Error(http.StatusNotFound, err.Error())
+	}
+	return conn.CallRecordingStop(callID, params.DeviceID, params.GroupID)
+}

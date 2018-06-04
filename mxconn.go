@@ -596,3 +596,48 @@ type MXServiceInfo struct {
 	Ext        string `xml:"extension" json:"ext"`
 	HomeSystem mx.JID `xml:"homeSystem" json:"homeSystem,string,omitempty"`
 }
+
+// Recording описывает информацию для записи звонков.
+type Recording struct {
+	CallID   int64  `xml:"Call>callID" json:"callID" form:"callID"`
+	DeviceID string `xml:"Call>deviceID" json:"deviceID" form:"deviceID"`
+	GroupID  string `xml:"groupID" json:"groupID" form:"groupID"`
+}
+
+// CallRecording инициализирует запись звонка.
+func (c *MXConn) CallRecording(callID int64, deviceID, groupID string) error {
+	if _, err := c.SendWithResponse(&struct {
+		XMLName  xml.Name `xml:"StartRecording"`
+		CallID   int64    `xml:"Call>callID"`
+		DeviceID string   `xml:"Call>deviceID"`
+		GroupID  string   `xml:"groupID"`
+	}{
+		CallID:   callID,
+		DeviceID: deviceID,
+		GroupID:  groupID,
+	}); err != nil {
+		return err
+	}
+	return c.HandleWait(func(resp *mx.Response) error {
+		return mx.Stop
+	}, mx.ReadTimeout, "StartRecordingResponse")
+}
+
+// CallRecordingStop останавливает запись звонка.
+func (c *MXConn) CallRecordingStop(callID int64, deviceID, groupID string) error {
+	if _, err := c.SendWithResponse(&struct {
+		XMLName  xml.Name `xml:"StopRecording"`
+		CallID   int64    `xml:"Call>callID"`
+		DeviceID string   `xml:"Call>deviceID"`
+		GroupID  string   `xml:"groupID"`
+	}{
+		CallID:   callID,
+		DeviceID: deviceID,
+		GroupID:  groupID,
+	}); err != nil {
+		return err
+	}
+	return c.HandleWait(func(resp *mx.Response) error {
+		return mx.Stop
+	}, mx.ReadTimeout, "StopRecordingResponse")
+}

@@ -808,6 +808,30 @@ Authorization: Bearer <token>
 
 Если такого звонка не было, он уже отвечен или завершен, то возвращается ошибка 404.
 
+## Запись звонка
+
+```http
+POST /calls/<id>/record HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{"deviceID":"sipPhone","groupID":"12345"}
+```
+
+Возвращает пустой ответ или ошибку.
+
+## Остановка записи звонка
+
+```http
+POST /calls/<id>/record/stop HTTP/1.1
+Authorization: Bearer <token>
+Content-Type: application/json; charset=utf-8
+
+{"deviceID":"sipPhone","groupID":"12345"}
+```
+
+Возвращает пустой ответ или ошибку.
+
 
 ## Список голосовых сообщений пользователя (голосовая почта)
 

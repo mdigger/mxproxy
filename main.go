@@ -93,6 +93,8 @@ func main() {
 	mux.Handle("PATCH", "/calls/:name", proxy.AssignDevice)
 	mux.Handle("PUT", "/calls/:id/hold", proxy.CallHold)
 	mux.Handle("PUT", "/calls/:id/unhold", proxy.CallUnHold)
+	mux.Handle("POST", "/calls/:id/record", proxy.CallRecording)
+	mux.Handle("POST", "/calls/:id/record/stop", proxy.CallRecordingStop)
 	mux.Handle("POST", "/calls/:id/conference", proxy.ConferenceCreateFromCall)
 
 	mux.Handle("GET", "/voicemails", proxy.Voicemails)
