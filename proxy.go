@@ -199,8 +199,6 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(delivered); err != nil {
 					return err
 				}
-				// сохраняем информацию о входящем звонке
-				conn.Calls.Store(delivered.CallID, delivered)
 				// фильтруем события о звонках
 				if delivered.CalledDevice != conn.Ext &&
 					delivered.AlertingDevice != conn.Ext {
@@ -209,6 +207,8 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				}
 				delivered.Timestamp = time.Now().Unix()
 				delivered.Type = "Delivered"
+				// сохраняем информацию о входящем звонке
+				conn.Calls.Store(delivered.CallID, delivered)
 				p.push.Send(conn.Login, delivered) // отсылаем уведомление
 				ctxlog.Info("incoming call", "id", delivered.CallID)
 			case "EstablishedEvent": // состоявшийся звонок
@@ -216,10 +216,10 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(established); err != nil {
 					return err
 				}
-				// сохраняем информацию о звонке
-				conn.Calls.Store(established.CallID, established)
 				established.Timestamp = time.Now().Unix()
 				established.Type = "Established"
+				// сохраняем информацию о звонке
+				conn.Calls.Store(established.CallID, established)
 				p.push.Send(conn.Login, established) // отсылаем уведомление
 				ctxlog.Info("established call", "id", established.CallID)
 			case "OriginatedEvent":
@@ -673,7 +673,7 @@ func (p *Proxy) SIPAnswer(c *rest.Context) error {
 	// Params описывает параметры, передаваемые в запроса
 	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		return rest.ErrNotFound
+		return c.Error(http.StatusNotFound, err.Error())
 	}
 	// инициализируем параметры по умолчанию и разб��ра��м запр����с
 	var params = &struct {
@@ -704,7 +704,7 @@ func (p *Proxy) Transfer(c *rest.Context) error {
 	// Params описывает параметры, передаваемые в запроса
 	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		return rest.ErrNotFound
+		return c.Error(http.StatusNotFound, err.Error())
 	}
 	// инициализируем параметры по умолчанию и разбираем запрос
 	var params = new(struct {
@@ -730,7 +730,7 @@ func (p *Proxy) ClearConnection(c *rest.Context) error {
 	}
 	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		return rest.ErrNotFound
+		return c.Error(http.StatusNotFound, err.Error())
 	}
 	cleared, err := conn.ClearConnection(callID)
 	if err != nil {
@@ -747,7 +747,7 @@ func (p *Proxy) CallHold(c *rest.Context) error {
 	}
 	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		return rest.ErrNotFound
+		return c.Error(http.StatusNotFound, err.Error())
 	}
 	held, err := conn.CallHold(callID)
 	if err != nil {
@@ -764,7 +764,7 @@ func (p *Proxy) CallUnHold(c *rest.Context) error {
 	}
 	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		return rest.ErrNotFound
+		return c.Error(http.StatusNotFound, err.Error())
 	}
 	retrieved, err := conn.CallUnHold(callID)
 	if err != nil {
@@ -781,7 +781,7 @@ func (p *Proxy) CallInfo(c *rest.Context) error {
 	}
 	callID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		return rest.ErrNotFound
+		return c.Error(http.StatusNotFound, err.Error())
 	}
 	callInfo, ok := conn.Calls.Load(callID)
 	if !ok {
