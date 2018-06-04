@@ -209,6 +209,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				delivered.Type = "Delivered"
 				// сохраняем информацию о входящем звонке
 				conn.Calls.Store(delivered.CallID, delivered)
+				ctxlog.Debug("store call info", "id", delivered.CallID)
 				p.push.Send(conn.Login, delivered) // отсылаем уведомление
 				ctxlog.Info("incoming call", "id", delivered.CallID)
 			case "EstablishedEvent": // состоявшийся звонок
@@ -220,6 +221,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				established.Type = "Established"
 				// сохраняем информацию о звонке
 				conn.Calls.Store(established.CallID, established)
+				ctxlog.Debug("store call info", "id", established.CallID)
 				p.push.Send(conn.Login, established) // отсылаем уведомление
 				ctxlog.Info("established call", "id", established.CallID)
 			case "OriginatedEvent":
@@ -238,6 +240,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				}
 				// удаляем информацию о входящем звонке
 				conn.Calls.Delete(cleared.CallID)
+				ctxlog.Debug("delete call info", "id", cleared.CallID)
 				cleared.Timestamp = time.Now().Unix()
 				cleared.Type = "ConnectionCleared"
 				p.push.Send(conn.Login, cleared) // отсылаем уведомление
