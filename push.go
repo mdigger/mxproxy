@@ -16,8 +16,19 @@ import (
 	"golang.org/x/net/http2"
 )
 
-// PushTimeout задает максимальное время ожидания ответа при посылке уведомлений.
-var PushTimeout = time.Second * 30
+// Время ожидания ответа и сохранения соединения для APNS.
+var (
+	PushTimeout         = time.Second * 30
+	PushIdleConnTimeout = time.Minute * 10
+)
+
+// var pushDialTLS = func(network, addr string) (net.Conn, error) {
+// 	var dialer = &net.Dialer{
+// 		Timeout:   20 * time.Second,
+// 		KeepAlive: 60 * time.Second,
+// 	}
+// 	return tls.DialWithDialer(dialer, network, addr, cfg)
+// }
 
 // Push описывает конфигурация для отправки уведомлений через сервисы
 // Apple Push Notification и Firebase Cloud Messaging.
@@ -283,9 +294,9 @@ func (p *Push) LoadCertificate(filename, password string) error {
 				},
 			},
 		},
-		// MaxIdleConns:    10,
-		// MaxIdleConnsPerHost: 2,
-		IdleConnTimeout: time.Minute * 10,
+		IdleConnTimeout:   PushIdleConnTimeout,
+		DisableKeepAlives: false,
+		// DialTLS:         pushDialTLS,
 	}
 	if err = http2.ConfigureTransport(transport); err != nil {
 		return err

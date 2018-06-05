@@ -116,12 +116,12 @@ func InitProxy() (proxy *Proxy, err error) {
 	}
 	// изменяем время жизни пуш-клиентов для APNS, если они указаны в конфиге
 	if config.VoIP.APNTTL != "" {
-		PushTimeout, err = time.ParseDuration(config.VoIP.APNTTL)
+		PushIdleConnTimeout, err = time.ParseDuration(config.VoIP.APNTTL)
 		if err != nil {
 			return nil, err
 		}
 	}
-	log.Info("apple push client idle", "timeout", PushTimeout)
+	log.Info("apple push client idle", "timeout", PushIdleConnTimeout)
 	for filename, password := range config.VoIP.APN {
 		if err := push.LoadCertificate(filename, password); err != nil {
 			log.Error("apn certificate error", "filename", filename, "error", err)
