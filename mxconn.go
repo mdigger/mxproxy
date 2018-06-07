@@ -457,14 +457,14 @@ func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 }
 
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
-func (c *MXConn) VoiceMailList(MediaType string) ([]*VoiceMail, error) {
+func (c *MXConn) VoiceMailList(mediaType string) ([]*VoiceMail, error) {
 	resp, err := c.SendWithResponse(&struct {
 		XMLName   xml.Name `xml:"MailGetListIncoming"`
 		UserID    string   `xml:"userID"`
 		MediaType string   `xml:"mediaType,omitempty"`
 	}{
 		UserID:    c.Ext,
-		MediaType: MediaType,
+		MediaType: mediaType,
 	})
 	if err != nil {
 		return nil, err
@@ -495,40 +495,46 @@ type VoiceMail struct {
 // VoiceMailDelete удаляет голосовое сообщение пользователя. При удалении
 // голосового сообщения с несуществующим или чужим идентификатором ничего
 // не происходит и ошибка не возвращается.
-func (c *MXConn) VoiceMailDelete(id string) error {
+func (c *MXConn) VoiceMailDelete(id, mediaType string) error {
 	_, err := c.SendWithResponse(&struct {
-		XMLName xml.Name `xml:"MailDeleteIncoming"`
-		MailID  string   `xml:"mailId"`
+		XMLName   xml.Name `xml:"MailDeleteIncoming"`
+		MailID    string   `xml:"mailId"`
+		MediaType string   `xml:"mediaType,omitempty"`
 	}{
-		MailID: id,
+		MailID:    id,
+		MediaType: mediaType,
 	})
 	return err
 }
 
 // VoiceMailSetRead позволяет изменить состояние прочтения голосового сообщения.
-func (c *MXConn) VoiceMailSetRead(id string, read bool) error {
+func (c *MXConn) VoiceMailSetRead(id string, read bool, mediaType string) error {
 	// ��апрашива��м первый кусочек файла с голосовым сообщением
 	_, err := c.SendWithResponse(&struct {
-		XMLName xml.Name `xml:"MailSetStatus"`
-		MailID  string   `xml:"mailId"`
-		Flag    bool     `xml:"read"`
+		XMLName   xml.Name `xml:"MailSetStatus"`
+		MailID    string   `xml:"mailId"`
+		Flag      bool     `xml:"read"`
+		MediaType string   `xml:"mediaType,omitempty"`
 	}{
-		MailID: id,
-		Flag:   read,
+		MailID:    id,
+		Flag:      read,
+		MediaType: mediaType,
 	})
 	return err
 }
 
 // VoiceMailSetNote позволяет изменить комментарий голосового сообщения.
-func (c *MXConn) VoiceMailSetNote(id string, note string) error {
+func (c *MXConn) VoiceMailSetNote(id, note, mediaType string) error {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	_, err := c.SendWithResponse(&struct {
-		XMLName xml.Name `xml:"UpdateVmNote"`
-		MailID  string   `xml:"mailId"`
-		Note    string   `xml:"note"`
+		XMLName   xml.Name `xml:"UpdateVmNote"`
+		MailID    string   `xml:"mailId"`
+		Note      string   `xml:"note"`
+		MediaType string   `xml:"mediaType,omitempty"`
 	}{
-		MailID: id,
-		Note:   note,
+		MailID:    id,
+		Note:      note,
+		MediaType: mediaType,
 	})
 	return err
 }

@@ -838,7 +838,8 @@ func (p *Proxy) DeleteVoicemail(c *rest.Context) error {
 	if err != nil {
 		return err
 	}
-	if err = conn.VoiceMailDelete(c.Param("id")); err != nil {
+	var mediaType = c.Query("media") // запрашиваем тип медиа
+	if err = conn.VoiceMailDelete(c.Param("id"), mediaType); err != nil {
 		if _, ok := err.(*mx.CSTAError); ok {
 			return rest.ErrNotFound
 		}
@@ -867,9 +868,10 @@ func (p *Proxy) PatchVoiceMail(c *rest.Context) error {
 		return rest.ErrBadRequest
 	}
 	var msgID = c.Param("id")
+	var mediaType = c.Query("media") // запрашиваем тип медиа
 	// изменяем текст заметки, если он задан
 	if params.Read != nil {
-		if err = conn.VoiceMailSetRead(msgID, *params.Read); err != nil {
+		if err = conn.VoiceMailSetRead(msgID, *params.Read, mediaType); err != nil {
 			if _, ok := err.(*mx.CSTAError); ok {
 				return rest.ErrNotFound
 			}
@@ -878,7 +880,7 @@ func (p *Proxy) PatchVoiceMail(c *rest.Context) error {
 	}
 	// изменяем отметку о прочтении, если она задана
 	if params.Note != nil {
-		if err = conn.VoiceMailSetNote(msgID, *params.Note); err != nil {
+		if err = conn.VoiceMailSetNote(msgID, *params.Note, mediaType); err != nil {
 			if _, ok := err.(*mx.CSTAError); ok {
 				return rest.ErrNotFound
 			}

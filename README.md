@@ -904,6 +904,10 @@ Authorization: Bearer <token>
 
 Идентификатор голосового сообщения задается в URL запроса.
 
+В качестве дополнительного параметра в запросе можно указать тип "media" (VoiceMail или Recording):
+`DELETE /voicemails/<id>?media=VoiceMail`.
+
+
 ## Заметки и статус голосового сообщения
 
 ```http
@@ -915,6 +919,10 @@ Content-Type: application/json; charset=utf-8
 ```
 
 Идентификатор голосового сообщения задается в URL запроса.
+
+В качестве дополнительного параметра в запросе можно указать тип "media" (VoiceMail или Recording):
+`PATCH /voicemails/<id>?media=VoiceMail`.
+
 
 Задает метку о прочтении и/или комментарий к голосовому сообщению:
 
