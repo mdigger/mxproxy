@@ -610,7 +610,7 @@ func (c *MXConn) CallRecording(callID int64, deviceID, groupID string) error {
 		XMLName  xml.Name `xml:"StartRecording"`
 		CallID   int64    `xml:"Call>callID"`
 		DeviceID string   `xml:"Call>deviceID"`
-		GroupID  string   `xml:"groupID"`
+		GroupID  string   `xml:"groupID,omitempty"`
 	}{
 		CallID:   callID,
 		DeviceID: deviceID,
@@ -629,7 +629,7 @@ func (c *MXConn) CallRecordingStop(callID int64, deviceID, groupID string) error
 		XMLName  xml.Name `xml:"StopRecording"`
 		CallID   int64    `xml:"Call>callID"`
 		DeviceID string   `xml:"Call>deviceID"`
-		GroupID  string   `xml:"groupID"`
+		GroupID  string   `xml:"groupID,omitempty"`
 	}{
 		CallID:   callID,
 		DeviceID: deviceID,
