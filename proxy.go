@@ -448,11 +448,11 @@ type MailIncomingReadyEvent struct {
 	OwnerType         string `xml:"ownerType,attr" json:"ownerType"`
 	MonitorCrossRefID int64  `xml:"monitorCrossRefID" json:"-"`
 	MailID            string `xml:"mailId" json:"mailId"`
-	// MediaType         string `xml:"mediaType" json:"mediaType"`
-	GlobalCallID string `xml:"gcid" json:"gcid"`
-	Received     int64  `xml:"received" json:"received"`
-	Duration     uint16 `xml:"Duration" json:"duration"`
-	Read         bool   `xml:"read" json:"-"`
+	MediaType         string `xml:"mediaType" json:"mediaType"`
+	GlobalCallID      string `xml:"gcid" json:"gcid"`
+	Received          int64  `xml:"received" json:"received"`
+	Duration          uint16 `xml:"Duration" json:"duration"`
+	Read              bool   `xml:"read" json:"-"`
 	// FileFormat        string `xml:"fileFormat" json:"fileFormat"`
 	// Note              string `xml:"note" json:"note,omitempty"`
 	Timestamp int64 `xml:"-" json:"timestamp"`
