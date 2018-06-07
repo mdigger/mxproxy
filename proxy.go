@@ -824,7 +824,8 @@ func (p *Proxy) Voicemails(c *rest.Context) error {
 	if err != nil {
 		return err
 	}
-	vmlist, err := conn.VoiceMailList()
+	var mediaType = c.Query("media") // запрашиваем тип медиа
+	vmlist, err := conn.VoiceMailList(mediaType)
 	if err != nil {
 		return err
 	}

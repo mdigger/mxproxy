@@ -457,12 +457,14 @@ func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 }
 
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
-func (c *MXConn) VoiceMailList() ([]*VoiceMail, error) {
+func (c *MXConn) VoiceMailList(MediaType string) ([]*VoiceMail, error) {
 	resp, err := c.SendWithResponse(&struct {
-		XMLName xml.Name `xml:"MailGetListIncoming"`
-		UserID  string   `xml:"userID"`
+		XMLName   xml.Name `xml:"MailGetListIncoming"`
+		UserID    string   `xml:"userID"`
+		MediaType string   `xml:"mediaType,omitempty"`
 	}{
-		UserID: c.Ext,
+		UserID:    c.Ext,
+		MediaType: MediaType,
 	})
 	if err != nil {
 		return nil, err
