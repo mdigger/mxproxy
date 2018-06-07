@@ -618,9 +618,7 @@ func (c *MXConn) CallRecording(callID int64, deviceID, groupID string) error {
 	}); err != nil {
 		return err
 	}
-	return c.HandleWait(func(resp *mx.Response) error {
-		return mx.Stop
-	}, mx.ReadTimeout, "StartRecordingResponse")
+	return nil
 }
 
 // CallRecordingStop останавливает запись звонка.
@@ -637,7 +635,5 @@ func (c *MXConn) CallRecordingStop(callID int64, deviceID, groupID string) error
 	}); err != nil {
 		return err
 	}
-	return c.HandleWait(func(resp *mx.Response) error {
-		return mx.Stop
-	}, mx.ReadTimeout, "StopRecordingResponse")
+	return nil
 }
