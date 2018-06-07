@@ -286,11 +286,27 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				vmail.Type = "MailIncoming"
 				p.push.Send(conn.Login, vmail) // отсылаем уведомление
 				ctxlog.Info("new voice mail", "id", vmail.MailID)
+			case "RecordingStateEvent":
+				var rec = new(struct {
+					Type           string `xml:"-" json:"type"`
+					CallID         int64  `xml:"callID" json:"callId"`
+					DeviceID       string `xml:"deviceID" json:"deviceId"`
+					RecIsAvailable bool   `xml:"RecIsAvailable" json:"available"`
+					RecIsActive    bool   `xml:"RecIsActive" json:"active"`
+					Timestamp      int64  `xml:"-" json:"timestamp"`
+				})
+				if err := resp.Decode(rec); err != nil {
+					return err
+				}
+				rec.Timestamp = time.Now().Unix()
+				rec.Type = "RecordingState"
+				p.push.Send(conn.Login, rec) // отсылаем уведомление
+				ctxlog.Info("recording state", "id", rec.CallID)
 			}
 			return nil
 		}, "DeliveredEvent", "MailIncomingReadyEvent", "EstablishedEvent",
 			"OriginatedEvent", "ConnectionClearedEvent", "HeldEvent",
-			"RetrievedEvent")
+			"RetrievedEvent", "RecordingStateEvent")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
