@@ -47,11 +47,13 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 	conn.SetLogger(log.New("mx:" + login))
 	// авторизуемся
 	if _, err = conn.Login(mx.Login{
-		UserName: conf.Login,
-		Password: conf.Password,
-		Type:     "User", //"Mobile",
-		Platform: "iPhone",
-		Version:  "7.0",
+		UserName:   conf.Login,
+		Password:   conf.Password,
+		Type:       "User", //"Mobile",
+		Platform:   "iPhone",
+		Version:    "7.0",
+		LoginCapab: "Audio",
+		MediaCapab: "Voicemail|CallRec",
 	}); err != nil {
 		return nil, err
 	}
