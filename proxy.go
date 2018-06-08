@@ -277,6 +277,11 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				if err := resp.Decode(vmail); err != nil {
 					return err
 				}
+				// Сохраняем список записанных звонков
+				if vmail.MediaType == "Recording" {
+					conn.Recs.Store(vmail.MailID, vmail)
+					ctxlog.Debug("store recording", "id", vmail.MailID)
+				}
 				// игнорируем прочитанные голосовые сообщения
 				if vmail.Read {
 					ctxlog.Debug("ignore readed voicemail", "id", vmail.MailID)
@@ -825,9 +830,17 @@ func (p *Proxy) Voicemails(c *rest.Context) error {
 		return err
 	}
 	var mediaType = c.Query("media") // запрашиваем тип медиа
+	// возвращаем только записанные звонки
+	if mediaType == "Recording" {
+		return c.Write(rest.JSON{"voiceMails": conn.RecordsList()})
+	}
 	vmlist, err := conn.VoiceMailList(mediaType)
 	if err != nil {
 		return err
+	}
+	// добавляем информацию о записанных звонках
+	if mediaType == "" {
+		vmlist = append(vmlist, conn.RecordsList()...)
 	}
 	return c.Write(rest.JSON{"voiceMails": vmlist})
 }
@@ -838,12 +851,17 @@ func (p *Proxy) DeleteVoicemail(c *rest.Context) error {
 	if err != nil {
 		return err
 	}
+	var msgID = c.Param("id")
 	var mediaType = c.Query("media") // запрашиваем тип медиа
-	if err = conn.VoiceMailDelete(c.Param("id"), mediaType); err != nil {
+	if err = conn.VoiceMailDelete(msgID, mediaType); err != nil {
 		if _, ok := err.(*mx.CSTAError); ok {
 			return rest.ErrNotFound
 		}
 		return err
+	}
+	// удаляем из списка записанных звонков
+	if mediaType == "Recording" {
+		conn.Recs.Delete(msgID)
 	}
 	return nil
 }

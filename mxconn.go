@@ -27,6 +27,7 @@ type MXConn struct {
 	*mx.Conn           // соединение с сервером MX
 	monitorID int64    // идентификатор пользовательского монитора
 	Calls     sync.Map // текущие звонки
+	Recs      sync.Map // информация о записанных звонках
 }
 
 // MXConnect устанавливает пользовательское соединение с сервером MX и
@@ -476,6 +477,16 @@ func (c *MXConn) VoiceMailList(mediaType string) ([]*VoiceMail, error) {
 		return nil, err
 	}
 	return vmails.Mails, nil
+}
+
+// RecordsList возвращает список записанных звонков.
+func (c *MXConn) RecordsList() []*VoiceMail {
+	var recs = make([]*VoiceMail, 0)
+	c.Recs.Range(func(_, value interface{}) bool {
+		recs = append(recs, value.(*VoiceMail))
+		return true
+	})
+	return recs
 }
 
 // VoiceMail описывает информацию о записи в голосо��ой почте.
