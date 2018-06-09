@@ -1,4 +1,4 @@
-# MX Proxy 2.1
+# MX Proxy 2.2
 
 ## Авторизация пользователя и приложения
 
@@ -857,6 +857,7 @@ Content-Type: application/json; charset=utf-8
             "to": "3095",
             "ownerType": "user",
             "id": "82",
+            "mediaType": "VoiceMail",
             "received": 1502213652,
             "duration": 29,
             "read": true,
@@ -869,6 +870,7 @@ Content-Type: application/json; charset=utf-8
             "to": "3095",
             "ownerType": "user",
             "id": "117",
+            "mediaType": "VoiceMail",
             "received": 1502565440,
             "duration": 7
         }
@@ -876,7 +878,7 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-Поддерживаемые поля: `from`, `fromName`, `callerName`, `to`, `ownerType`, `id`, `received` (_timestamp_), `duration` (_number_), `read` (_bool_), `note`. Пустые поля могут быть опущены.
+Поддерживаемые поля: `from`, `fromName`, `callerName`, `to`, `ownerType`, `id`, `received` (_timestamp_), `duration` (_number_), `read` (_bool_), `mediaType`, `note`. Пустые поля могут быть опущены.
 
 ## Файл с голосовым сообщением
 

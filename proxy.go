@@ -279,7 +279,19 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 				}
 				// Сохраняем список записанных звонков
 				if vmail.MediaType == "Recording" {
-					conn.Recs.Store(vmail.MailID, vmail)
+					conn.Recs.Store(vmail.MailID, &VoiceMail{
+						From:       vmail.From,
+						FromName:   vmail.FromName,
+						CallerName: vmail.CallerName,
+						To:         vmail.To,
+						OwnerType:  vmail.OwnerType,
+						ID:         vmail.MailID,
+						MediaType:  "Recording",
+						Received:   vmail.Received,
+						Duration:   vmail.Duration,
+						Read:       vmail.Read,
+						Note:       vmail.Note,
+					})
 					ctxlog.Debug("store recording", "id", vmail.MailID)
 				}
 				// игнорируем прочитанные голосовые сообщения
@@ -459,8 +471,8 @@ type MailIncomingReadyEvent struct {
 	Duration          uint16 `xml:"Duration" json:"duration"`
 	Read              bool   `xml:"read" json:"-"`
 	// FileFormat        string `xml:"fileFormat" json:"fileFormat"`
-	// Note              string `xml:"note" json:"note,omitempty"`
-	Timestamp int64 `xml:"-" json:"timestamp"`
+	Note      string `xml:"note" json:"note,omitempty"`
+	Timestamp int64  `xml:"-" json:"timestamp"`
 }
 
 // Login проверяет авторизацию и возвращает авторизационный токен. Если
@@ -834,13 +846,16 @@ func (p *Proxy) Voicemails(c *rest.Context) error {
 	if mediaType == "Recording" {
 		return c.Write(rest.JSON{"voiceMails": conn.RecordsList()})
 	}
-	vmlist, err := conn.VoiceMailList(mediaType)
+	vmlist, err := conn.VoiceMailList( /*mediaType*/ )
 	if err != nil {
 		return err
 	}
 	// добавляем информацию о записанных звонках
 	if mediaType == "" {
 		vmlist = append(vmlist, conn.RecordsList()...)
+		sort.Slice(vmlist, func(i, j int) bool {
+			return vmlist[i].Received < vmlist[j].Received
+		})
 	}
 	return c.Write(rest.JSON{"voiceMails": vmlist})
 }
@@ -895,6 +910,11 @@ func (p *Proxy) PatchVoiceMail(c *rest.Context) error {
 			}
 			return err
 		}
+		if rec, ok := conn.Recs.Load(msgID); ok {
+			var vm = rec.(*VoiceMail)
+			vm.Read = *params.Read
+			conn.Recs.Store(msgID, vm)
+		}
 	}
 	// изменяем отметку о прочтении, если она задана
 	if params.Note != nil {
@@ -903,6 +923,11 @@ func (p *Proxy) PatchVoiceMail(c *rest.Context) error {
 				return rest.ErrNotFound
 			}
 			return err
+		}
+		if rec, ok := conn.Recs.Load(msgID); ok {
+			var vm = rec.(*VoiceMail)
+			vm.Note = *params.Note
+			conn.Recs.Store(msgID, vm)
 		}
 	}
 	return c.Write(rest.JSON{"vm": params})

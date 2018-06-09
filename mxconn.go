@@ -458,14 +458,14 @@ func (c *MXConn) CallUnHold(callID int64) (*RetrievedEvent, error) {
 }
 
 // VoiceMailList возвращает список записей в голосовой почте пользователя.
-func (c *MXConn) VoiceMailList(mediaType string) ([]*VoiceMail, error) {
+func (c *MXConn) VoiceMailList( /*mediaType string*/ ) ([]*VoiceMail, error) {
 	resp, err := c.SendWithResponse(&struct {
-		XMLName   xml.Name `xml:"MailGetListIncoming"`
-		UserID    string   `xml:"userID"`
-		MediaType string   `xml:"mediaType,omitempty"`
+		XMLName xml.Name `xml:"MailGetListIncoming"`
+		UserID  string   `xml:"userID"`
+		// MediaType string   `xml:"mediaType,omitempty"`
 	}{
-		UserID:    c.Ext,
-		MediaType: mediaType,
+		UserID: c.Ext,
+		// MediaType: mediaType,
 	})
 	if err != nil {
 		return nil, err
@@ -475,6 +475,9 @@ func (c *MXConn) VoiceMailList(mediaType string) ([]*VoiceMail, error) {
 	})
 	if err := resp.Decode(vmails); err != nil {
 		return nil, err
+	}
+	for _, vm := range vmails.Mails {
+		vm.MediaType = "VoiceMail"
 	}
 	return vmails.Mails, nil
 }
@@ -489,18 +492,19 @@ func (c *MXConn) RecordsList() []*VoiceMail {
 	return recs
 }
 
-// VoiceMail описывает информацию о записи в голосо��ой почте.
+// VoiceMail описывает информацию о записи в голосовой почте.
 type VoiceMail struct {
-	From       string        `xml:"from,attr" json:"from"`
-	FromName   string        `xml:"fromName,attr" json:"fromName,omitempty"`
-	CallerName string        `xml:"callerName,attr" json:"callerName,omitempty"`
-	To         string        `xml:"to,attr" json:"to"`
-	OwnerType  string        `xml:"ownerType,attr" json:"ownerType"`
-	ID         string        `xml:"mailId" json:"id"`
-	Received   int64         `xml:"received" json:"received"`
-	Duration   time.Duration `xml:"duration" json:"duration,omitempty"`
-	Read       bool          `xml:"read" json:"read,omitempty"`
-	Note       string        `xml:"note" json:"note,omitempty"`
+	From       string `xml:"from,attr" json:"from"`
+	FromName   string `xml:"fromName,attr" json:"fromName,omitempty"`
+	CallerName string `xml:"callerName,attr" json:"callerName,omitempty"`
+	To         string `xml:"to,attr" json:"to"`
+	OwnerType  string `xml:"ownerType,attr" json:"ownerType"`
+	ID         string `xml:"mailId" json:"id"`
+	MediaType  string `xml:"mediaType" json:"mediaType"`
+	Received   int64  `xml:"received" json:"received"`
+	Duration   uint16 `xml:"duration" json:"duration,omitempty"`
+	Read       bool   `xml:"read" json:"read,omitempty"`
+	Note       string `xml:"note" json:"note,omitempty"`
 }
 
 // VoiceMailDelete удаляет голосовое сообщение пользователя. При удалении
