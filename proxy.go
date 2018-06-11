@@ -951,7 +951,7 @@ func (p *Proxy) GetVoiceMailFile(c *rest.Context) error {
 		return err
 	}
 	// получаем информацию о файле с голосовой почтой
-	vminfo, err := conn.VoiceMailFile(c.Param("id"))
+	vminfo, err := conn.VoiceMailFile(c.Param("id"), c.Query("media"))
 	if err != nil {
 		if _, ok := err.(*mx.CSTAError); ok {
 			return rest.ErrNotFound

@@ -555,13 +555,15 @@ func (c *MXConn) VoiceMailSetNote(id, note, mediaType string) error {
 }
 
 // VoiceMailFile отдает содержимое файла с голосовым сообщением.
-func (c *MXConn) VoiceMailFile(id string) (*Chunks, error) {
+func (c *MXConn) VoiceMailFile(id, mediaType string) (*Chunks, error) {
 	// запрашиваем первый кусочек файла с голосовым сообщением
 	resp, err := c.SendWithResponse(&struct {
-		XMLName xml.Name `xml:"MailReceiveIncoming"`
-		MailID  string   `xml:"faxSessionID"`
+		XMLName   xml.Name `xml:"MailReceiveIncoming"`
+		MailID    string   `xml:"faxSessionID"`
+		MediaType string   `xml:"mediaType,omitempty"`
 	}{
-		MailID: id,
+		MailID:    id,
+		MediaType: mediaType,
 	})
 	if err != nil {
 		return nil, err
