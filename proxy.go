@@ -210,7 +210,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		})
 		// запускаем мониторинг звонков и голосовых сообщений
 		err := conn.Handle(func(resp *mx.Response) error {
-			ctxlog.Debug("event handler", "name", resp.Name)
+			// ctxlog.Debug("event handler", "name", resp.Name)
 			switch resp.Name {
 			case "DeliveredEvent": // входящий звонок
 				var delivered = new(DeliveredEvent)
@@ -284,10 +284,10 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			case "MailIncomingReadyEvent": // новое голосовое сообщение
 				var vmail = new(MailIncomingReadyEvent)
 				if err := resp.Decode(vmail); err != nil {
-					ctxlog.Error("MailIncomingReadyEvent decode error:", err)
+					// ctxlog.Error("MailIncomingReadyEvent decode error:", err)
 					return err
 				}
-				ctxlog.Debug("MailIncomingReadyEvent:", "data", vmail)
+				// ctxlog.Debug("MailIncomingReadyEvent:", "data", vmail)
 				// Сохраняем список записанных звонков
 				if vmail.MediaType == "Recording" {
 					conn.Recs.Store(vmail.MailID, &VoiceMail{
@@ -334,7 +334,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			return nil
 		}, "DeliveredEvent", "MailIncomingReadyEvent", "EstablishedEvent",
 			"OriginatedEvent", "ConnectionClearedEvent", "HeldEvent",
-			"RetrievedEvent", "RecordingStateEvent", "MonitorStartResponse")
+			"RetrievedEvent", "RecordingStateEvent")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
