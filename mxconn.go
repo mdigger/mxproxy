@@ -22,12 +22,12 @@ func init() {
 
 // MXConn описывает пользовательское соединение с сервером MX.
 type MXConn struct {
-	Login     string   // логин пользователя
-	*MXConfig          // конфигурация для авторизации и подключения
-	*mx.Conn           // соединение с сервером MX
-	monitorID int64    // идентификатор пользовательского монитора
-	Calls     sync.Map // текущие звонки
-	Recs      sync.Map // информация о записанных звонках
+	Login     string // логин пользователя
+	*MXConfig        // конфигурация для авторизации и подключения
+	*mx.Conn         // соединение с сервером MX
+	// monitorID int64    // идентификатор пользовательского монитора
+	Calls sync.Map // текущие звонки
+	Recs  sync.Map // информация о записанных звонках
 }
 
 // MXConnect устанавливает пользовательское соединение с сервером MX и
@@ -58,47 +58,47 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 	}); err != nil {
 		return nil, err
 	}
-	// отправляем команду на запуск монитора
-	resp, err := conn.SendWithResponse(&struct {
-		XMLName xml.Name `xml:"MonitorStart"`
-		Ext     string   `xml:"monitorObject>deviceObject"`
-		// ConfEvents bool     `xml:"confEvents"`
-	}{
-		Ext: conn.Ext,
-		// ConfEvents: true,
-	})
-	if err != nil {
-		return nil, err
-	}
-	// разбираем идентификатор монитора
-	var monitor = new(struct {
-		ID int64 `xml:"monitorCrossRefID"`
-	})
-	if err = resp.Decode(monitor); err != nil {
-		return nil, err
-	}
+	// // отправляем команду на запуск монитора
+	// resp, err := conn.SendWithResponse(&struct {
+	// 	XMLName xml.Name `xml:"MonitorStart"`
+	// 	Ext     string   `xml:"monitorObject>deviceObject"`
+	// 	// ConfEvents bool     `xml:"confEvents"`
+	// }{
+	// 	Ext: conn.Ext,
+	// 	// ConfEvents: true,
+	// })
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // разбираем идентификатор монитора
+	// var monitor = new(struct {
+	// 	ID int64 `xml:"monitorCrossRefID"`
+	// })
+	// if err = resp.Decode(monitor); err != nil {
+	// 	return nil, err
+	// }
 
 	return &MXConn{
-		Login:     login,
-		MXConfig:  conf,
-		Conn:      conn,
-		monitorID: monitor.ID,
+		Login:    login,
+		MXConfig: conf,
+		Conn:     conn,
+		// monitorID: monitor.ID,
 	}, nil
 }
 
 // Close закрывает пользовательское соединение с сервером MX.
 func (c *MXConn) Close() error {
-	// останавливаем пользовательский монитор
-	if c.monitorID != 0 {
-		if _, err := c.SendWithResponse(&struct {
-			XMLName xml.Name `xml:"MonitorStop"`
-			ID      int64    `xml:"monitorCrossRefID"`
-		}{
-			ID: c.monitorID,
-		}); err != nil {
-			return err
-		}
-	}
+	// // останавливаем пользовательский монитор
+	// if c.monitorID != 0 {
+	// 	if _, err := c.SendWithResponse(&struct {
+	// 		XMLName xml.Name `xml:"MonitorStop"`
+	// 		ID      int64    `xml:"monitorCrossRefID"`
+	// 	}{
+	// 		ID: c.monitorID,
+	// 	}); err != nil {
+	// 		return err
+	// 	}
+	// }
 	// отправляем команду на деавторизацию
 	if err := c.Logout(); err != nil {
 		return err

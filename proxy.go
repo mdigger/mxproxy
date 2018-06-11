@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -200,8 +201,16 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		ctxlog.Debug("mx user call monitoring")
 		defer ctxlog.Debug("mx user call monitoring end")
 	monitoring:
+		// отправляем команду на запуск монитора
+		conn.Send(&struct {
+			XMLName xml.Name `xml:"MonitorStart"`
+			Ext     string   `xml:"monitorObject>deviceObject"`
+		}{
+			Ext: conn.Ext,
+		})
 		// запускаем мониторинг звонков и голосовых сообщений
 		err := conn.Handle(func(resp *mx.Response) error {
+			ctxlog.Debug("event handler", "name", resp.Name)
 			switch resp.Name {
 			case "DeliveredEvent": // входящий звонок
 				var delivered = new(DeliveredEvent)
@@ -275,8 +284,10 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			case "MailIncomingReadyEvent": // новое голосовое сообщение
 				var vmail = new(MailIncomingReadyEvent)
 				if err := resp.Decode(vmail); err != nil {
+					ctxlog.Error("MailIncomingReadyEvent decode error:", err)
 					return err
 				}
+				ctxlog.Debug("MailIncomingReadyEvent:", "data", vmail)
 				// Сохраняем список записанных звонков
 				if vmail.MediaType == "Recording" {
 					conn.Recs.Store(vmail.MailID, &VoiceMail{
@@ -286,7 +297,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 						To:         vmail.To,
 						OwnerType:  vmail.OwnerType,
 						ID:         vmail.MailID,
-						MediaType:  "Recording",
+						MediaType:  vmail.MediaType,
 						Received:   vmail.Received,
 						Duration:   vmail.Duration,
 						Read:       vmail.Read,
@@ -323,7 +334,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			return nil
 		}, "DeliveredEvent", "MailIncomingReadyEvent", "EstablishedEvent",
 			"OriginatedEvent", "ConnectionClearedEvent", "HeldEvent",
-			"RetrievedEvent", "RecordingStateEvent")
+			"RetrievedEvent", "RecordingStateEvent", "MonitorStartResponse")
 		// проверяем, что сервис или соединение не остановлены
 		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
@@ -461,7 +472,7 @@ type MailIncomingReadyEvent struct {
 	To         string `xml:"to,attr" json:"to"`
 	// Private           string `xml:"private,attr" json:"private"`
 	// Urgent            string `xml:"urgent,attr" json:"urgent"`
-	OwnerID           int64  `xml:"ownerId" json:"ownerId"`
+	OwnerID           int64  `xml:"ownerId,attr" json:"ownerId"`
 	OwnerType         string `xml:"ownerType,attr" json:"ownerType"`
 	MonitorCrossRefID int64  `xml:"monitorCrossRefID" json:"-"`
 	MailID            string `xml:"mailId" json:"mailId"`
