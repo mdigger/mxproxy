@@ -479,7 +479,7 @@ type MailIncomingReadyEvent struct {
 	MediaType         string `xml:"mediaType" json:"mediaType"`
 	GlobalCallID      string `xml:"gcid" json:"gcid"`
 	Received          int64  `xml:"received" json:"received"`
-	Duration          uint16 `xml:"Duration" json:"duration"`
+	Duration          uint16 `xml:"duration" json:"duration"`
 	Read              bool   `xml:"read" json:"-"`
 	// FileFormat        string `xml:"fileFormat" json:"fileFormat"`
 	Note      string `xml:"note" json:"note,omitempty"`
