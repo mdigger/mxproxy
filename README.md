@@ -897,6 +897,10 @@ Content-Type: audio/wave
 <data>
 ```
 
+В качестве дополнительного параметра в запросе можно указать тип "media" (VoiceMail или Recording):
+`GET /voicemails/<id>?media=Recording`.
+
+
 ## Удаление голосового сообщения
 
 ```http
