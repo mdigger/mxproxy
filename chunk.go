@@ -13,10 +13,11 @@ import (
 // Chunks описывает информацию о файле голосовой почты и предоставляет
 // канал для его получения по частям.
 type Chunks struct {
-	ID       string `json:"id"`       // идентификатор сообщения
-	Total    int    `json:"chunks"`   // общее количество частей
-	Mimetype string `json:"mimeType"` // формат данных
-	Name     string `json:"name"`     // название документа
+	ID        string `json:"id"`        // идентификатор сообщения
+	Total     int    `json:"chunks"`    // общее количество частей
+	Mimetype  string `json:"mimeType"`  // формат данных
+	Name      string `json:"name"`      // название документа
+	MediaType string `json:"mediaType"` // тип записи
 
 	conn   *mx.Conn    // соединение с сервером
 	chunks chan []byte // канал для передачи содержимого файла
@@ -46,10 +47,12 @@ func (c *Chunks) Cancel() (err error) {
 		// потоке отсылки данных, а эта функция вызывается из основного
 		// потока пользователя
 		_, err = c.conn.SendWithResponse(&struct {
-			XMLName xml.Name `xml:"MailCancelReceive"`
-			MailID  string   `xml:"mailId"`
+			XMLName   xml.Name `xml:"MailCancelReceive"`
+			MailID    string   `xml:"mailId"`
+			MediaType string   `xml:"mediaType,omitempty"`
 		}{
-			MailID: c.ID,
+			MailID:    c.ID,
+			MediaType: c.MediaType,
 		})
 	})
 	return
@@ -66,11 +69,13 @@ func (c *Chunks) Chunks() <-chan []byte {
 			// запрашиваем  следующий кусочек файла
 			var resp *mx.Response
 			resp, err = c.conn.SendWithResponse(&struct {
-				XMLName xml.Name `xml:"MailReceiveIncoming"`
-				MailID  string   `xml:"faxSessionID"`
-				Next    string   `xml:"nextChunk"`
+				XMLName   xml.Name `xml:"MailReceiveIncoming"`
+				MailID    string   `xml:"faxSessionID"`
+				Next      string   `xml:"nextChunk"`
+				MediaType string   `xml:"mediaType,omitempty"`
 			}{
-				MailID: c.ID,
+				MailID:    c.ID,
+				MediaType: c.MediaType,
 			})
 			if err != nil {
 				break

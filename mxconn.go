@@ -589,13 +589,14 @@ func (c *MXConn) VoiceMailFile(id, mediaType string) (*Chunks, error) {
 	}
 	// создаем описание файла голосовой почты
 	var vminfo = &Chunks{
-		ID:       chunk.ID,            // идентификатор голосового сообщения
-		Total:    chunk.Total,         // общее количество кусков
-		Mimetype: mimetype,            // тип файла
-		Name:     chunk.Name,          // название файла
-		conn:     c.Conn,              // соединение с сервером
-		chunks:   chunks,              // канал с содержимым файла
-		done:     make(chan struct{}), // канал для закрытия
+		ID:        chunk.ID,    // идентификатор голосового сообщения
+		Total:     chunk.Total, // общее количество кусков
+		Mimetype:  mimetype,    // тип файла
+		Name:      chunk.Name,  // название файла
+		MediaType: mediaType,
+		conn:      c.Conn,              // соединение с сервером
+		chunks:    chunks,              // канал с содержимым файла
+		done:      make(chan struct{}), // канал для закрытия
 	}
 	return vminfo, nil
 }
