@@ -38,7 +38,8 @@ clean:
 	rm -rf build/
 
 ##### LINUX BUILDS #####
-linux: build/linux_arm.tar.gz build/linux_arm64.tar.gz build/linux_386.tar.gz build/linux_amd64.tar.gz
+# linux: build/linux_arm.tar.gz build/linux_arm64.tar.gz build/linux_386.tar.gz build/linux_amd64.tar.gz
+linux: build/linux_amd64.tar.gz
 
 build/linux_386.tar.gz: $(sources)
 	$(call build,linux,386,)
