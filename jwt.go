@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"sync"
@@ -116,7 +117,8 @@ var ErrUnknownSignKey = errors.New("unknown or obsolete signing key")
 // Verify проверяет валидность токена и возвращает информацию о логине
 // пользователя из него.
 func (j *JWTGenerator) Verify(token string) (string, error) {
-	if err := jwt.Verify(token, j.getKey); err != nil {
+	claim, err := jwt.Verify(token, j.getKey)
+	if err != nil {
 		if err == jwt.ErrEmptySignKey {
 			return "", ErrUnknownSignKey
 		}
@@ -125,7 +127,7 @@ func (j *JWTGenerator) Verify(token string) (string, error) {
 	var t = new(struct {
 		Login string `json:"sub"`
 	})
-	if err := jwt.Decode(token, t); err != nil {
+	if err := json.Unmarshal(claim, t); err != nil {
 		return "", err
 	}
 	return t.Login, nil
