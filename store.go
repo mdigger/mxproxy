@@ -41,8 +41,8 @@ const (
 )
 
 // AddUser добавляет информацию о пользователе в хранилище.
-func (s *Store) AddUser(login string, config *MXConfig) error {
-	return s.add(bucketUsers, login, config)
+func (s *Store) AddUser(config *MXConfig) error {
+	return s.add(bucketUsers, config.Login, config)
 }
 
 // RemoveUser удаляет информацию о пользователе из хранилища.

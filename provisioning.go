@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -15,12 +16,16 @@ var (
 
 // GetProvisioning запрашивает и разбирает конфигурацию пользователя с
 // сервера провижининга.
-func (p *Proxy) GetProvisioning(login, password string) (*MXConfig, error) {
+func (p *Proxy) GetProvisioning(login, password, token string) (*MXConfig, error) {
 	req, err := http.NewRequest("GET", p.provisioningURL, nil)
 	if err != nil {
 		return nil, rest.NewError(http.StatusInternalServerError, err.Error())
 	}
-	req.SetBasicAuth(login, password)   // добавляем авторизацию
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	} else {
+		req.SetBasicAuth(login, password) // добавляем авторизацию
+	}
 	req.Header.Set("User-Agent", agent) // добавляем имя агента для запроса
 	resp, err := httpClient.Do(req)     // делаем запрос на получение конфигурации
 	if err != nil {

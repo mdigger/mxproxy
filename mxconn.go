@@ -33,7 +33,7 @@ type MXConn struct {
 // MXConnect устанавливает пользовательское соединение с сервером MX и
 // авторизует пользователя. Строка с login используется исключительно для
 // вывода в лог CSTA.
-func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
+func MXConnect(conf *MXConfig) (*MXConn, error) {
 	conn, err := mx.Connect(conf.Host) // подключаемся к серверу MX
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 		}
 	}()
 	// добавляем лог CSTA
-	conn.SetLogger(log.New("mx:" + login))
+	conn.SetLogger(log.New("mx:" + conf.Login))
 	// авторизуемся
 	if _, err = conn.Login(mx.Login{
 		UserName:   conf.Login,
@@ -79,7 +79,6 @@ func MXConnect(conf *MXConfig, login string) (*MXConn, error) {
 	// }
 
 	return &MXConn{
-		Login:    login,
 		MXConfig: conf,
 		Conn:     conn,
 		// monitorID: monitor.ID,

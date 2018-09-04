@@ -145,7 +145,7 @@ func InitProxy() (proxy *Proxy, err error) {
 	for _, login := range store.ListUsers() {
 		mxconf, _ := store.GetUser(login) // получаем конфигурацию
 		// устанавливаем соединение
-		if err = proxy.connect(mxconf, login); err != nil {
+		if err = proxy.connect(mxconf); err != nil {
 			// в случае ошибки авторизации удаляем пользователя
 			if _, ok := err.(*mx.LoginError); ok {
 				store.RemoveUser(login)
@@ -180,8 +180,8 @@ func (p *Proxy) isStopped() bool {
 }
 
 // connect осуществляет подключение пользователя к серверу MX.
-func (p *Proxy) connect(conf *MXConfig, login string) error {
-	conn, err := MXConnect(conf, login)
+func (p *Proxy) connect(conf *MXConfig) error {
+	conn, err := MXConnect(conf)
 	if err != nil {
 		log.Error("mx user connection error", "error", err)
 		// в зависимости от типа ошибки возвращаем разный статус
@@ -193,11 +193,11 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		}
 		return rest.NewError(status, err.Error())
 	}
-	p.conns.Store(login, conn) // сохраняем соединение в списке
-	log.Info("mx user connected", "login", login)
+	p.conns.Store(conf.Login, conn) // сохраняем соединение в списке
+	log.Info("mx user connected", "login", conf.Login)
 
-	go func(conn *MXConn, login string) {
-		ctxlog := log.New(login)
+	go func(conn *MXConn) {
+		ctxlog := log.New(conf.Login)
 		ctxlog.Debug("mx user call monitoring")
 		defer ctxlog.Debug("mx user call monitoring end")
 	monitoring:
@@ -336,7 +336,7 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 			"OriginatedEvent", "ConnectionClearedEvent", "HeldEvent",
 			"RetrievedEvent", "RecordingStateEvent")
 		// проверяем, что сервис или соединение не остановлены
-		if _, ok := p.conns.Load(login); p.isStopped() || !ok {
+		if _, ok := p.conns.Load(conf.Login); p.isStopped() || !ok {
 			return // сервис или соединение остановлены
 		}
 		if err != nil {
@@ -346,9 +346,9 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		if err = <-conn.Done(); err != nil {
 			ctxlog.Error("mx user connection error", "error", err)
 		}
-		p.conns.Delete(login) // удаляем из списка соединений
+		p.conns.Delete(conf.Login) // удаляем из списка соединений
 	reconnect:
-		conf, err = p.store.GetUser(login) // получаем конфигураию
+		conf, err = p.store.GetUser(conf.Login) // получаем конфигураию
 		if err != nil {
 			ctxlog.Error("mx user config error", "error", err)
 			return
@@ -358,20 +358,20 @@ func (p *Proxy) connect(conf *MXConfig, login string) error {
 		if p.isStopped() {
 			return // сервис остановлен
 		}
-		conn, err = MXConnect(conf, login)
+		conn, err = MXConnect(conf)
 		if err != nil {
 			log.Error("mx user connection error", "error", err)
 			// в случае ошибки авторизации удаляем пользователя
 			if _, ok := err.(*mx.LoginError); ok {
-				p.store.RemoveUser(login)
+				p.store.RemoveUser(conf.Login)
 				return
 			}
 			goto reconnect
 		}
-		p.conns.Store(login, conn) // сохраняем соединение в списке
+		p.conns.Store(conf.Login, conn) // сохраняем соединение в списке
 		ctxlog.Info("mx user connected")
 		goto monitoring
-	}(conn, login)
+	}(conn)
 
 	return nil
 }
@@ -489,44 +489,57 @@ type MailIncomingReadyEvent struct {
 // Login проверяет авторизацию и возвращает авторизационный токен. Если
 // пользовательское соединение с сервером MX не установлено, то устанавливает
 // его. Данные для подключения к серверу MX сохраняются в хранилище.
-func (p *Proxy) Login(c *rest.Context) error {
+func (p *Proxy) Login(c *rest.Context) (err error) {
 	// получаем информацию об авторизации из заголовка запроса
-	clientID, secret, ok := c.BasicAuth()
-	if !ok {
+	var mxconf *MXConfig
+	switch auth := c.Header("Authorization"); {
+	case strings.HasPrefix(auth, "Bearer "):
+		var token = strings.TrimPrefix(auth, "Bearer ") // авторизационный токен
+		// проверяем авторизацию на сервере провижининга
+		mxconf, err = p.GetProvisioning("", "", token)
+	case strings.HasPrefix(auth, "Basic "):
+		clientID, secret, ok := c.BasicAuth()
+		if !ok {
+			return rest.ErrForbidden
+		}
+		c.AddLogField("app", clientID)
+		// авторизуем приложение
+		if appSecret, ok := p.appsAuth[clientID]; !ok || appSecret != secret {
+			return c.Error(http.StatusForbidden, "bad client-id or app secret")
+		}
+		// проверяем, что тип запроса соответствует OAuth2 спецификации
+		if c.Form("grant_type") != "password" {
+			return c.Error(http.StatusForbidden, "bad grant_type")
+		}
+		// получаем логин и пароль пользователя из запроса
+		var login, password = c.Form("username"), c.Form("password")
+		// проверяем авторизацию на сервере провижининга
+		mxconf, err = p.GetProvisioning(login, password, "")
+		if err != nil {
+			return err
+		}
+	default:
 		c.SetHeader("WWW-Authenticate",
 			fmt.Sprintf("Basic realm=%q", appName+" client application"))
 		return rest.ErrUnauthorized
 	}
-	c.AddLogField("app", clientID)
-	// авторизуем приложение
-	if appSecret, ok := p.appsAuth[clientID]; !ok || appSecret != secret {
-		return c.Error(http.StatusForbidden, "bad client-id or app secret")
-	}
-	// проверяем, что тип запроса соответствует OAuth2 спецификации
-	if c.Form("grant_type") != "password" {
-		return c.Error(http.StatusForbidden, "bad grant_type")
-	}
-	// получаем логин и пароль пользователя из запроса
-	var login, password = c.Form("username"), c.Form("password")
-	c.AddLogField("login", login) // добавим логин в лог
-	// проверяем авторизацию на сервере провижининга
-	mxconf, err := p.GetProvisioning(login, password)
 	if err != nil {
 		return err
 	}
+
 	// подключаемся к MX и авторизуем пользователя
 	// TODO: проверить, что данные не изменились.
-	if _, ok := p.conns.Load(login); !ok {
-		if err = p.connect(mxconf, login); err != nil {
+	if _, ok := p.conns.Load(mxconf.Login); !ok {
+		if err = p.connect(mxconf); err != nil {
 			return err
 		}
 	}
 	// сохраняем информацию о пользователе в хранилище
-	if err = p.store.AddUser(login, mxconf); err != nil {
+	if err = p.store.AddUser(mxconf); err != nil {
 		return err
 	}
 	// создаем токен на основании предоставленной информации и отдаем его
-	tokenInfo, err := p.jwtGen.Token(login)
+	tokenInfo, err := p.jwtGen.Token(mxconf.Login)
 	if err != nil {
 		return err
 	}
