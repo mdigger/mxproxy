@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/mdigger/log"
 	"github.com/mdigger/rest"
+	bolt "go.etcd.io/bbolt"
 )
 
 // Store описывает хранилище данных
