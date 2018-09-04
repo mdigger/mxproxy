@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,17 +12,17 @@ import (
 	"strings"
 	"time"
 
+	app "github.com/mdigger/app-info"
 	"github.com/mdigger/log"
 	"github.com/mdigger/rest"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 // информация о сервисе и версия
 var (
 	appName = "MXProxy" // название сервиса
-	version = "2.2"     // версия
-	date    = ""        // дата сборки
-	git     = ""        // версия git
+	version = "2.3"     // версия
+	date    string      // дата сборки
+	commit  string      // версия git
 
 	agent        = fmt.Sprintf("%s/%s", appName, version)
 	lowerAppName = strings.ToLower(appName)
@@ -35,32 +32,25 @@ var (
 	logFile    = filepath.Join("/var/log", lowerAppName+".log")
 )
 
-func init() {
-	// инициализируем разбор параметров запуска сервиса
-	flag.StringVar(&host, "host", host, "main server `host name`")
-	flag.StringVar(&configName, "config", configName, "configuration `filename`")
-	flag.Var(log.Flag(), "log", "log `level`")
-	flag.Parse()
-
-	// выводим информацию о текущей версии
-	var verInfoFields = log.With(
-		"name", appName,
-		"version", version)
-	if date != "" {
-		verInfoFields = verInfoFields.With("builded", date)
-	}
-	if git != "" {
-		verInfoFields = verInfoFields.With("git", git)
-		agent += " (" + git + ")"
-	}
-	if host, err := os.Hostname(); err == nil {
-		verInfoFields = verInfoFields.With("host", host)
-	}
-	verInfoFields.Info("service info")
-	log.Info("log", "level", log.Flag().String())
-}
-
 func main() {
+	// инициализируем разбор параметров запуска сервиса
+	var httphost = flag.String("port", app.Env("PORT", ":8080"),
+		"http server `port`")
+	var letsencrypt = flag.String("letsencrypt", app.Env("LETSENCRYPT_HOST", ""),
+		"domain `host` name")
+	flag.StringVar(&configName, "config", configName, "configuration `filename`")
+	flag.Parse()
+	// выводим в лог информацию о версии сервиса
+	app.Parse(appName, version, commit, date)
+	log.Info("service", app.LogInfo())
+
+	// разбираем имя хоста и порт, на котором будет слушать веб-сервер
+	port, err := app.Port(*httphost)
+	if err != nil {
+		log.Error("http host parse error", err)
+		os.Exit(2)
+	}
+
 	// инициализируем сервис
 	proxy, err := InitProxy()
 	if err != nil {
@@ -68,105 +58,6 @@ func main() {
 		os.Exit(2)
 	}
 	defer proxy.Close()
-	// инициализируем обработку HTTP запросов
-	var mux = &rest.ServeMux{
-		Headers: map[string]string{
-			"Server": agent, // ¯\_(ツ)_/¯
-		},
-		Logger: log.New("http"),
-	}
-	// генерация авторизационных токенов
-	mux.Handle("POST", "/auth", proxy.Login)
-	mux.Handle("GET", "/auth", proxy.LoginInfo)
-	mux.Handle("DELETE", "/auth", proxy.Logout)
-
-	mux.Handle("GET", "/contacts", proxy.Contacts)
-	mux.Handle("GET", "/services", proxy.Services)
-
-	mux.Handle("GET", "/calls", proxy.CallLog)
-	mux.Handle("PATCH", "/calls", proxy.SetMode)
-	mux.Handle("POST", "/calls", proxy.MakeCall)
-	mux.Handle("GET", "/calls/:id", proxy.CallInfo)
-	mux.Handle("PUT", "/calls/:id", proxy.SIPAnswer)
-	mux.Handle("POST", "/calls/:id", proxy.Transfer)
-	mux.Handle("DELETE", "/calls/:id", proxy.ClearConnection)
-	mux.Handle("PATCH", "/calls/:name", proxy.AssignDevice)
-	mux.Handle("PUT", "/calls/:id/hold", proxy.CallHold)
-	mux.Handle("PUT", "/calls/:id/unhold", proxy.CallUnHold)
-	mux.Handle("POST", "/calls/:id/record", proxy.CallRecording)
-	mux.Handle("POST", "/calls/:id/record/stop", proxy.CallRecordingStop)
-	mux.Handle("POST", "/calls/:id/conference", proxy.ConferenceCreateFromCall)
-
-	mux.Handle("GET", "/voicemails", proxy.Voicemails)
-	mux.Handle("GET", "/voicemails/:id", proxy.GetVoiceMailFile)
-	mux.Handle("DELETE", "/voicemails/:id", proxy.DeleteVoicemail)
-	mux.Handle("PATCH", "/voicemails/:id", proxy.PatchVoiceMail)
-
-	mux.Handle("GET", "/conferences", proxy.ConferenceList)
-	mux.Handle("POST", "/conferences", proxy.ConferenceCreate)
-	mux.Handle("PUT", "/conferences/:id", proxy.ConferenceUpdate)
-	mux.Handle("POST", "/conferences/:id", proxy.ConferenceJoin)
-	mux.Handle("DELETE", "/conferences/:id", proxy.ConferenceDelete)
-	mux.Handle("GET", "/conferences/info", proxy.ConferenceInfo)
-
-	mux.Handle("PUT", "/tokens/:type/:topic/:token", proxy.Token)
-	mux.Handle("DELETE", "/tokens/:type/:topic/:token", proxy.Token)
-
-	mux.Handles(rest.Paths{
-		// // отдает список запущенных соединений
-		// "/debug/connections": rest.Methods{
-		// 	"GET": func(c *rest.Context) error {
-		// 		var list []string
-		// 		proxy.conns.Range(func(login, _ interface{}) bool {
-		// 			list = append(list, login.(string))
-		// 			return true
-		// 		})
-		// 		sort.Strings(list)
-		// 		return c.Write(rest.JSON{"connections": list})
-		// 	},
-		// },
-		// // список зарегистрированных приложений для авторизации OAuth2
-		// "/debug/apps": rest.Methods{
-		// 	"GET": func(c *rest.Context) error {
-		// 		var list = make(map[string]string, len(proxy.appsAuth))
-		// 		for appName, secret := range proxy.appsAuth {
-		// 			list[appName] = secret
-		// 		}
-		// 		return c.Write(rest.JSON{"apps": list})
-		// 	},
-		// },
-		// // список зарегистрированных пользователей
-		// "/debug/users": rest.Methods{
-		// 	"GET": func(c *rest.Context) error {
-		// 		return c.Write(
-		// 			rest.JSON{"users": proxy.store.section(bucketUsers)})
-		// 	},
-		// },
-		// // список зарегистрированных токенов устройств
-		// "/debug/tokens": rest.Methods{
-		// 	"GET": func(c *rest.Context) error {
-		// 		return c.Write(
-		// 			rest.JSON{"tokens": proxy.store.section(bucketTokens)})
-		// 	},
-		// },
-		"/debug/log": rest.Methods{
-			"GET": rest.File(logFile),
-		},
-	}, func(c *rest.Context) error {
-		// проверяем авторизацию при обращении к данным
-		clientID, secret, ok := c.BasicAuth()
-		if !ok {
-			c.SetHeader("WWW-Authenticate",
-				fmt.Sprintf("Basic realm=%q", appName+" client application"))
-			return rest.ErrUnauthorized
-		}
-		if appSecret, ok := proxy.appsAuth[clientID]; !ok || appSecret != secret {
-			return rest.ErrForbidden
-		}
-		c.AddLogField("app", clientID)
-		return nil
-	})
-	startHTTPServer(mux, host) // запускаем HTTP сервер
 
 	if proxy.adminWeb != "" {
 		// запускаем административный веб
@@ -242,77 +133,131 @@ func main() {
 		go serverAdmin.ListenAndServe()
 	}
 
-	monitorSignals(os.Interrupt, os.Kill) // ожидаем сигнала остановки
-}
+	// инициализируем обработку HTTP запросов
+	var httplogger = log.New("http")
+	// инициализируем обработку HTTP запросов
+	var mux = &rest.ServeMux{
+		Headers: map[string]string{
+			"Server": agent, // ¯\_(ツ)_/¯
+		},
+		Logger: httplogger,
+	}
+	// генерация авторизационных токенов
+	mux.Handle("POST", "/auth", proxy.Login)
+	mux.Handle("GET", "/auth", proxy.LoginInfo)
+	mux.Handle("DELETE", "/auth", proxy.Logout)
 
-// monitorSignals запускает мониторинг сигналов и возвращает значение, когда
-// получает сигнал. В качестве параметров передается список сигналов, которые
-// нужно отслеживать.
-func monitorSignals(signals ...os.Signal) os.Signal {
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, signals...)
-	return <-signalChan
-}
+	mux.Handle("GET", "/contacts", proxy.Contacts)
+	mux.Handle("GET", "/services", proxy.Services)
 
-// StartHTTPServer запускает HTTP сервер.
-func startHTTPServer(mux http.Handler, host string) {
-	// инициализируем HTTP сервер
+	mux.Handle("GET", "/calls", proxy.CallLog)
+	mux.Handle("PATCH", "/calls", proxy.SetMode)
+	mux.Handle("POST", "/calls", proxy.MakeCall)
+	mux.Handle("GET", "/calls/:id", proxy.CallInfo)
+	mux.Handle("PUT", "/calls/:id", proxy.SIPAnswer)
+	mux.Handle("POST", "/calls/:id", proxy.Transfer)
+	mux.Handle("DELETE", "/calls/:id", proxy.ClearConnection)
+	mux.Handle("PATCH", "/calls/:name", proxy.AssignDevice)
+	mux.Handle("PUT", "/calls/:id/hold", proxy.CallHold)
+	mux.Handle("PUT", "/calls/:id/unhold", proxy.CallUnHold)
+	mux.Handle("POST", "/calls/:id/record", proxy.CallRecording)
+	mux.Handle("POST", "/calls/:id/record/stop", proxy.CallRecordingStop)
+	mux.Handle("POST", "/calls/:id/conference", proxy.ConferenceCreateFromCall)
+
+	mux.Handle("GET", "/voicemails", proxy.Voicemails)
+	mux.Handle("GET", "/voicemails/:id", proxy.GetVoiceMailFile)
+	mux.Handle("DELETE", "/voicemails/:id", proxy.DeleteVoicemail)
+	mux.Handle("PATCH", "/voicemails/:id", proxy.PatchVoiceMail)
+
+	mux.Handle("GET", "/conferences", proxy.ConferenceList)
+	mux.Handle("POST", "/conferences", proxy.ConferenceCreate)
+	mux.Handle("PUT", "/conferences/:id", proxy.ConferenceUpdate)
+	mux.Handle("POST", "/conferences/:id", proxy.ConferenceJoin)
+	mux.Handle("DELETE", "/conferences/:id", proxy.ConferenceDelete)
+	mux.Handle("GET", "/conferences/info", proxy.ConferenceInfo)
+
+	mux.Handle("PUT", "/tokens/:type/:topic/:token", proxy.Token)
+	mux.Handle("DELETE", "/tokens/:type/:topic/:token", proxy.Token)
+
+	mux.Handles(rest.Paths{
+		"/debug/log": rest.Methods{
+			"GET": rest.File(logFile),
+		},
+	}, func(c *rest.Context) error {
+		// проверяем авторизацию при обращении к данным
+		clientID, secret, ok := c.BasicAuth()
+		if !ok {
+			c.SetHeader("WWW-Authenticate",
+				fmt.Sprintf("Basic realm=%q", appName+" client application"))
+			return rest.ErrUnauthorized
+		}
+		if appSecret, ok := proxy.appsAuth[clientID]; !ok || appSecret != secret {
+			return rest.ErrForbidden
+		}
+		c.AddLogField("app", clientID)
+		return nil
+	})
 	var server = &http.Server{
+		Addr:         port,
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
-		WriteTimeout: time.Minute * 5,
-		ErrorLog:     log.StdLog(log.WARN, "http"),
+		WriteTimeout: time.Second * 20,
+		ErrorLog:     httplogger.StdLog(log.ERROR),
 	}
-	// анализируем порт
-	var httphost, port, err = net.SplitHostPort(host)
-	if err, ok := err.(*net.AddrError); ok && err.Err == "missing port in address" {
-		httphost = err.Addr
-	}
-	var isIP = (net.ParseIP(httphost) != nil)
-	var notLocal = (httphost != "localhost" &&
-		!strings.HasSuffix(httphost, ".local") &&
-		!isIP)
-	var canCert = notLocal && httphost != "" &&
-		(port == "443" || port == "https" || port == "")
-
-	// добавляем автоматическую поддержку TLS сертификатов для сервиса
-	if canCert {
-		manager := autocert.Manager{
-			Prompt: autocert.AcceptTOS,
-			HostPolicy: func(_ context.Context, host string) error {
-				if host != httphost {
-					log.Error("unsupported https host", "host", host)
-					return errors.New("acme/autocert: host not configured")
-				}
-				return nil
-			},
-			Email: "dmitrys@xyzrd.com",
-			Cache: autocert.DirCache("letsEncrypt.cache"),
-		}
-		server.TLSConfig = &tls.Config{
-			GetCertificate: manager.GetCertificate,
-		}
-		server.Addr = ":https"
-		// поддержка получения сертификата Let's Encrypt
-		go http.ListenAndServe(":http", manager.HTTPHandler(nil))
-	} else if port == "" {
-		server.Addr = net.JoinHostPort(httphost, "http")
+	var hosts []string
+	// настраиваем автоматическое получение сертификата
+	if *letsencrypt != "" {
+		hosts = strings.Split(*letsencrypt, ",")
+		server.TLSConfig = app.LetsEncrypt(hosts...)
+		server.Addr = ":443" // подменяем порт на 443
 	} else {
-		server.Addr = net.JoinHostPort(httphost, port)
-	}
-	// запускаем HTTP сервер
-	go func() {
-		log.Info("starting http server",
-			"address", server.Addr, "tls", canCert, "host", httphost)
-		var err error
-		if canCert {
-			err = server.ListenAndServeTLS("", "")
-		} else {
-			err = server.ListenAndServe()
-		}
+		tlsConfig, err := app.LoadCertificates(filepath.Join(".", "certs"))
 		if err != nil {
-			log.Error("http server stopped", "error", err)
+			httplogger.Error("certificates error", err)
 			os.Exit(2)
 		}
+		if tlsConfig != nil {
+			server.TLSConfig = tlsConfig
+			hosts = make([]string, 0, len(tlsConfig.NameToCertificate))
+			for name := range tlsConfig.NameToCertificate {
+				hosts = append(hosts, name)
+			}
+		}
+	}
+
+	// отслеживаем сигнал о прерывании и останавливаем по нему сервер
+	go func() {
+		var sigint = make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		<-sigint
+		if err := server.Shutdown(context.Background()); err != nil {
+			httplogger.Error("server shutdown", err)
+		}
 	}()
+	// добавляем в статистику и выводим в лог информацию о запущенном сервере
+	if server.TLSConfig != nil {
+		// добавляем заголовок с обязательством использования защищенного
+		// соединения в ближайший час
+		mux.Headers["Strict-Transport-Security"] = "max-age=3600"
+	}
+	httplogger.Info("server",
+		"listen", server.Addr,
+		"tls", server.TLSConfig != nil,
+		"hosts", hosts,
+		"letsencrypt", *letsencrypt != "",
+	)
+	defer log.Info("service stoped")
+
+	// в зависимости от того, поддерживаются сертификаты или нет, запускается
+	// разная версию веб-сервера
+	if server.TLSConfig != nil {
+		err = server.ListenAndServeTLS("", "")
+	} else {
+		err = server.ListenAndServe()
+	}
+	if err != http.ErrServerClosed {
+		httplogger.Error("server", err)
+	} else {
+		httplogger.Info("server stopped")
+	}
 }
