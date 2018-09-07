@@ -29,7 +29,7 @@ type JWTGenerator struct {
 func NewJWTGenerator(tokenTTL, signKeyTTL time.Duration) *JWTGenerator {
 	var jwtConfig = &JWTGenerator{
 		conf: &jwt.Config{
-			Issuer:   "https://" + host,
+			// Issuer:   "https://" + host,
 			Created:  true,
 			Expires:  tokenTTL,
 			UniqueID: jwt.Nonce(8),
