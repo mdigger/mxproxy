@@ -9,3 +9,4 @@ debug
 *.toml
 *.wav
 .DS_Store
+dist/
