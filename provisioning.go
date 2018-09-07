@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	app "github.com/mdigger/app-info"
 	"github.com/mdigger/rest"
 )
 
@@ -26,8 +27,8 @@ func (p *Proxy) GetProvisioning(login, password, token string) (*MXConfig, error
 	} else {
 		req.SetBasicAuth(login, password) // добавляем авторизацию
 	}
-	req.Header.Set("User-Agent", agent) // добавляем имя агента для запроса
-	resp, err := httpClient.Do(req)     // делаем запрос на получение конфигурации
+	req.Header.Set("User-Agent", app.Agent) // добавляем имя агента для запроса
+	resp, err := httpClient.Do(req)         // делаем запрос на получение конфигурации
 	if err != nil {
 		var status = http.StatusServiceUnavailable
 		if errTimeout, ok := err.(net.Error); ok && errTimeout.Timeout() {

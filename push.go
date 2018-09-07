@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	app "github.com/mdigger/app-info"
 	"github.com/mdigger/log"
 	"golang.org/x/crypto/pkcs12"
 	"golang.org/x/net/http2"
@@ -93,7 +94,7 @@ func (p *Push) sendAPN(login string, obj interface{}) error {
 			if err != nil {
 				return err
 			}
-			req.Header.Set("user-agent", agent)
+			req.Header.Set("user-agent", app.Agent)
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := client.Do(req)
 			if err != nil {
@@ -173,7 +174,7 @@ func (p *Push) sendFCM(login string, obj interface{}) error {
 		if err != nil {
 			return err
 		}
-		req.Header.Set("User-Agent", agent)
+		req.Header.Set("User-Agent", app.Agent)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "key="+fcmKey)
 		resp, err := fcmClient.Do(req)
