@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -24,121 +25,130 @@ var (
 	date    string      // дата сборки
 	commit  string      // версия git
 
-	agent        = fmt.Sprintf("%s/%s", appName, version)
 	lowerAppName = strings.ToLower(appName)
-	// host         = lowerAppName + ".connector73.net" // имя сервера
-	host       = "localhost:8080"
-	configName = lowerAppName + ".toml" // имя файла с хранилищем токенов
-	logFile    = filepath.Join("/var/log", lowerAppName+".log")
+	logFile      = filepath.Join("/var/log", lowerAppName+".log")
 )
 
 func main() {
+	app.Parse(appName, version, commit, date)
+	var appInfo = app.Get()
 	// инициализируем разбор параметров запуска сервиса
-	var httphost = flag.String("port", app.Env("PORT", ":8080"),
+	var httphost = flag.String("port", app.Env("PORT", app.DefaultPort),
 		"http server `port`")
-	var letsencrypt = flag.String("letsencrypt", app.Env("LETSENCRYPT_HOST", ""),
-		"domain `host` name")
+	var configName = lowerAppName + ".toml" // имя файла с хранилищем токенов
+	if app.IsDocker() {
+		configName = path.Join("config", configName)
+	}
 	flag.StringVar(&configName, "config", configName, "configuration `filename`")
+	var adminWeb = flag.String("admin", app.Env("ADMIN", "8049"),
+		"administrative web `host`")
+	var db = strings.ToLower(appInfo.Name) + ".db"
+	if app.IsDocker() {
+		db = path.Join("db", db)
+	}
+	flag.StringVar(&db, "db", app.Env("DB", db), "store `file`")
 	flag.Parse()
 	// выводим в лог информацию о версии сервиса
-	app.Parse(appName, version, commit, date)
 	log.Info("service", app.LogInfo())
 
 	// разбираем имя хоста и порт, на котором будет слушать веб-сервер
-	port, err := app.Port(*httphost)
+	var err error
+	*httphost, err = app.Port(*httphost)
 	if err != nil {
 		log.Error("http host parse error", err)
 		os.Exit(2)
 	}
-
+	*adminWeb, err = app.Port(*adminWeb)
+	if err != nil {
+		log.Error("http admin host parse error", err)
+		os.Exit(2)
+	}
 	// инициализируем сервис
-	proxy, err := InitProxy()
+	proxy, err := InitProxy(configName, db)
 	if err != nil {
 		log.Error("initializing proxy error", "error", err)
 		os.Exit(2)
 	}
 	defer proxy.Close()
 
-	if proxy.adminWeb != "" {
-		// запускаем административный веб
-		var muxAdmin = &rest.ServeMux{
-			Headers: map[string]string{
-				"Server": agent, // ¯\_(ツ)_/¯
-			},
-			Logger: log.New("http admin"),
-		}
-		muxAdmin.Handles(rest.Paths{
-			// отдает список запущенных соединений
-			"/connections": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					var list []string
-					proxy.conns.Range(func(login, _ interface{}) bool {
-						list = append(list, login.(string))
-						return true
-					})
-					sort.Strings(list)
-					return c.Write(rest.JSON{"connections": list})
-				},
-			},
-			// список зарегистрированных приложений для авторизации OAuth2
-			"/apps": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					var list = make(map[string]string, len(proxy.appsAuth))
-					for appName, secret := range proxy.appsAuth {
-						list[appName] = secret
-					}
-					return c.Write(rest.JSON{"apps": list})
-				},
-			},
-			// список зарегистрированных пользователей
-			"/users": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					return c.Write(
-						rest.JSON{"users": proxy.store.section(bucketUsers)})
-				},
-				"POST": func(c *rest.Context) error {
-					var login = c.Form("login")
-					// останавливаем соединение
-					if conn, ok := proxy.conns.Load(login); ok {
-						proxy.conns.Delete(login) // удаляем из списка
-						conn.(*MXConn).Close()    // останавливаем соединение
-					}
-					// удаляем из хранилища
-					if err = proxy.store.RemoveUser(login); err != nil {
-						return err
-					}
-					log.Info("mx user disconnected", "login", login)
-					return c.Write(rest.JSON{"userLogout": login})
-				},
-			},
-			// список зарегистрированных токенов устройств
-			"/tokens": rest.Methods{
-				"GET": func(c *rest.Context) error {
-					return c.Write(
-						rest.JSON{"tokens": proxy.store.section(bucketTokens)})
-				},
-			},
-			// "/log": rest.Methods{
-			// 	"GET": rest.File(logFile),
-			// },
-		})
-		var serverAdmin = &http.Server{
-			Addr:         proxy.adminWeb,
-			Handler:      muxAdmin,
-			ReadTimeout:  time.Second * 10,
-			WriteTimeout: time.Minute * 5,
-			ErrorLog:     log.StdLog(log.WARN, "http admin"),
-		}
-		log.Info("starting admin http server", "address", serverAdmin.Addr)
-		go serverAdmin.ListenAndServe()
+	// запускаем административный веб
+	var muxAdmin = &rest.ServeMux{
+		Headers: map[string]string{
+			"Server": app.Agent,
+		},
+		Logger: log.New("http admin"),
 	}
+	muxAdmin.Handles(rest.Paths{
+		// отдает список запущенных соединений
+		"/connections": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				var list []string
+				proxy.conns.Range(func(login, _ interface{}) bool {
+					list = append(list, login.(string))
+					return true
+				})
+				sort.Strings(list)
+				return c.Write(rest.JSON{"connections": list})
+			},
+		},
+		// список зарегистрированных приложений для авторизации OAuth2
+		"/apps": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				var list = make(map[string]string, len(proxy.appsAuth))
+				for appName, secret := range proxy.appsAuth {
+					list[appName] = secret
+				}
+				return c.Write(rest.JSON{"apps": list})
+			},
+		},
+		// список зарегистрированных пользователей
+		"/users": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				return c.Write(
+					rest.JSON{"users": proxy.store.section(bucketUsers)})
+			},
+			"POST": func(c *rest.Context) error {
+				var login = c.Form("login")
+				// останавливаем соединение
+				if conn, ok := proxy.conns.Load(login); ok {
+					proxy.conns.Delete(login) // удаляем из списка
+					conn.(*MXConn).Close()    // останавливаем соединение
+				}
+				// удаляем из хранилища
+				if err = proxy.store.RemoveUser(login); err != nil {
+					return err
+				}
+				log.Info("mx user disconnected", "login", login)
+				return c.Write(rest.JSON{"userLogout": login})
+			},
+		},
+		// список зарегистрированных токенов устройств
+		"/tokens": rest.Methods{
+			"GET": func(c *rest.Context) error {
+				return c.Write(
+					rest.JSON{"tokens": proxy.store.section(bucketTokens)})
+			},
+		},
+		// "/log": rest.Methods{
+		// 	"GET": rest.File(logFile),
+		// },
+	})
+	var serverAdmin = &http.Server{
+		Addr:         *adminWeb,
+		Handler:      muxAdmin,
+		ReadTimeout:  time.Second * 10,
+		WriteTimeout: time.Minute * 5,
+		ErrorLog:     log.StdLog(log.WARN, "http admin"),
+	}
+	log.Info("starting admin http server", "address", serverAdmin.Addr)
+	go serverAdmin.ListenAndServe()
 
 	// инициализируем обработку HTTP запросов
 	var httplogger = log.New("http")
 	// инициализируем обработку HTTP запросов
 	var mux = &rest.ServeMux{
 		Headers: map[string]string{
-			"Server": agent, // ¯\_(ツ)_/¯
+			"Server": app.Agent,
 		},
 		Logger: httplogger,
 	}
@@ -198,31 +208,11 @@ func main() {
 		return nil
 	})
 	var server = &http.Server{
-		Addr:         port,
+		Addr:         *httphost,
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 20,
 		ErrorLog:     httplogger.StdLog(log.ERROR),
-	}
-	var hosts []string
-	// настраиваем автоматическое получение сертификата
-	if *letsencrypt != "" {
-		hosts = strings.Split(*letsencrypt, ",")
-		server.TLSConfig = app.LetsEncrypt(hosts...)
-		server.Addr = ":443" // подменяем порт на 443
-	} else {
-		tlsConfig, err := app.LoadCertificates(filepath.Join(".", "certs"))
-		if err != nil {
-			httplogger.Error("certificates error", err)
-			os.Exit(2)
-		}
-		if tlsConfig != nil {
-			server.TLSConfig = tlsConfig
-			hosts = make([]string, 0, len(tlsConfig.NameToCertificate))
-			for name := range tlsConfig.NameToCertificate {
-				hosts = append(hosts, name)
-			}
-		}
 	}
 
 	// отслеживаем сигнал о прерывании и останавливаем по нему сервер
@@ -234,28 +224,10 @@ func main() {
 			httplogger.Error("server shutdown", err)
 		}
 	}()
-	// добавляем в статистику и выводим в лог информацию о запущенном сервере
-	if server.TLSConfig != nil {
-		// добавляем заголовок с обязательством использования защищенного
-		// соединения в ближайший час
-		mux.Headers["Strict-Transport-Security"] = "max-age=3600"
-	}
-	httplogger.Info("server",
-		"listen", server.Addr,
-		"tls", server.TLSConfig != nil,
-		"hosts", hosts,
-		"letsencrypt", *letsencrypt != "",
-	)
+	httplogger.Info("server", "listen", server.Addr)
 	defer log.Info("service stoped")
 
-	// в зависимости от того, поддерживаются сертификаты или нет, запускается
-	// разная версию веб-сервера
-	if server.TLSConfig != nil {
-		err = server.ListenAndServeTLS("", "")
-	} else {
-		err = server.ListenAndServe()
-	}
-	if err != http.ErrServerClosed {
+	if err = server.ListenAndServe(); err != http.ErrServerClosed {
 		httplogger.Error("server", err)
 	} else {
 		httplogger.Info("server stopped")

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,11 +34,10 @@ type Proxy struct {
 }
 
 // InitProxy инициализирует и возвращает сервис проксирования запросов к MX.
-func InitProxy() (proxy *Proxy, err error) {
+func InitProxy(configName, db string) (proxy *Proxy, err error) {
 	var config = &struct {
 		ProvisioningURL string            `toml:"provisioning"`
 		AppsAuth        map[string]string `toml:"apps"`
-		DBName          string            `toml:"dbName"`
 		LogName         string            `toml:"logName"`
 		VoIP            struct {
 			APNTTL string            `toml:"apnTTL"`
@@ -48,11 +48,8 @@ func InitProxy() (proxy *Proxy, err error) {
 			TokenTTL   string `toml:"tokenTTL"`   // время жизни токена
 			SingKeyTTL string `toml:"signKeyTTL"` // время жизни ключа
 		} `toml:"jwt"`
-		AdminWeb string `toml:"adminWeb"`
 	}{
 		ProvisioningURL: "https://config.connector73.net/config",
-		DBName:          lowerAppName + ".db",
-		AdminWeb:        "localhost:8043",
 	}
 	// разбираем конфигурационный файл, если он существует
 	log.Info("loading configuration", "filename", configName)
@@ -103,7 +100,7 @@ func InitProxy() (proxy *Proxy, err error) {
 	log.Info("token generator", "tokenTTL", tokenTTL, "signKeyTTL", singKeyTTL)
 
 	// открываем хранилище
-	store, err := OpenStore(config.DBName)
+	store, err := OpenStore(db)
 	if err != nil {
 		log.Error("store error", "error", err)
 		return nil, err
@@ -124,6 +121,8 @@ func InitProxy() (proxy *Proxy, err error) {
 	}
 	log.Info("apple push client idle", "timeout", PushIdleConnTimeout)
 	for filename, password := range config.VoIP.APN {
+		// добавляем путь к файлу относительно конфигурационного файла
+		filename = filepath.Join(filepath.Dir(configName), filename)
 		if err := push.LoadCertificate(filename, password); err != nil {
 			log.Error("apn certificate error", "filename", filename, "error", err)
 		}
@@ -134,7 +133,6 @@ func InitProxy() (proxy *Proxy, err error) {
 	}
 	// инициализируем прокси
 	proxy = &Proxy{
-		adminWeb:        config.AdminWeb,
 		provisioningURL: config.ProvisioningURL,
 		appsAuth:        config.AppsAuth,
 		store:           store,
